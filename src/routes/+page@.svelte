@@ -5,6 +5,7 @@
 
 
 <script>
+    import { BACKEND_URL } from './conf';
     import { onMount } from 'svelte';
     
     let products = [];
@@ -21,7 +22,7 @@
         try {
             isLoading = true;
             error = null;
-            const response = await fetch('http://localhost:8080/get_stock', {
+            const response = await fetch(BACKEND_URL+'/get_stock', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
