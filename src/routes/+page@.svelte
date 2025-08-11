@@ -6,7 +6,7 @@
 
 <script>
     import { BACKEND_URL } from './conf';
-    import { onMount } from 'svelte';
+    import { onMount } from 'svelte'; 
     
     let products = [];
     let selectedProducts = [];
