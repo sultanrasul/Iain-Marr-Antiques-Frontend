@@ -5,8 +5,10 @@
 
 
 <script>
+// @ts-nocheck
+
     import { BACKEND_URL } from './conf';
-    import { onMount } from 'svelte'; 
+    import { onMount } from 'svelte';
     
     let products = [];
     let selectedProducts = [];
@@ -42,7 +44,7 @@
                 id: item["SKU NO."],
                 name: item["ITEM DESCRIPTION"],
                 price: item["SELLING PRICE"],
-                barcode: item["IM SKU"],
+                imSKU: item["IM SKU"],
                 sku: item["SKU NO."],
                 purchasePrice: item["PURCHASE PRICE"],
                 seller: item["NAME/ADDRESS SELLER"],
@@ -57,13 +59,36 @@
         }
     }
 
+    // Fetch data from your endpoint
+    async function printLabels() {
+        try {
+            const response = await fetch(BACKEND_URL+'/print_labels', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    selectedProducts: selectedProducts
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+        } catch (err) {
+            console.error("Failed to print labels", err);
+        }
+    }
+
     onMount(fetchProducts);
 
     // Filter products based on search term and sold status
     $: filteredProducts = products.filter(p => 
         (showSoldItems || !p.sold) && // Hide sold items unless toggled
         (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        p.barcode.includes(searchTerm) ||
+        p.imSKU.includes(searchTerm) ||
         p.sku.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
@@ -112,6 +137,7 @@
     function printSelected() {
         // In a real app, you would send the selectedProducts to your print API
         console.log("Printing products:", selectedProducts);
+        printLabels();
         alert(`Printing ${selectedProducts.length} labels...`);
         selectedProducts = [];
         showPrintModal = false;
@@ -170,8 +196,8 @@
                     </div>
                     <input 
                         type="text" 
-                        class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                        placeholder="Search by name, SKU or barcode..." 
+                        class="text-black w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                        placeholder="Search by name, SKU or IM SKU..." 
                         bind:value={searchTerm}
                     />
                 </div>
@@ -233,7 +259,10 @@
 
             <!-- Products Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
                 {#each filteredProducts as product}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <div 
                         class={`bg-white rounded-xl shadow-md overflow-hidden border-2 transition-all duration-200 relative
                             ${selectedProducts.find(p => p.id === product.id) ? 'border-blue-500 shadow-lg' : 'border-transparent'}
@@ -257,6 +286,7 @@
                                         {/if}
                                     </div>
                                 </div>
+                                <!-- svelte-ignore a11y_consider_explicit_label -->
                                 <button 
                                     on:click|stopPropagation={() => openEditModal(product)}
                                     class={`text-gray-400 hover:text-blue-500 p-1 flex-shrink-0
@@ -280,7 +310,7 @@
                                     <svg class="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
                                     </svg>
-                                    <span>Barcode: {product.barcode}</span>
+                                    <span>IM SKU: {product.imSKU}</span>
                                 </div>
                                 <div class="flex items-center">
                                     <svg class="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -342,7 +372,8 @@
                     <h2 class="text-xl font-bold text-gray-800">
                         {editedProduct ? 'Edit Product' : 'Print Labels'}
                     </h2>
-                    <button 
+                    <!-- svelte-ignore a11y_consider_explicit_label -->
+                    <button
                         on:click={() => { showPrintModal = false; editedProduct = null; }}
                         class="text-gray-400 hover:text-gray-600"
                     >
@@ -361,30 +392,19 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
                                 <input 
                                     type="text" 
-                                    class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                    class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
                                     bind:value={editedProduct.name}
                                 />
                             </div>
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price (£)</label>
+                                    <label class="text-black block text-sm font-medium text-gray-700 mb-1">Selling Price (£)</label>
                                     <input 
                                         type="number" 
                                         step="0.01"
-                                        class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                        class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
                                         bind:value={editedProduct.price}
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Purchase Price (£)</label>
-                                    <input 
-                                        type="number" 
-                                        step="0.01"
-                                        class="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed" 
-                                        bind:value={editedProduct.purchasePrice}
-                                        disabled
                                     />
                                 </div>
                             </div>
@@ -394,44 +414,23 @@
                                     <label class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
                                     <input 
                                         type="text" 
-                                        class="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed" 
+                                        class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed" 
                                         bind:value={editedProduct.sku}
                                         disabled
                                     />
                                 </div>
                                 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Barcode</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">IM SKU</label>
                                     <input 
                                         type="text" 
-                                        class="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed" 
-                                        bind:value={editedProduct.barcode}
+                                        class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed" 
+                                        bind:value={editedProduct.imSKU}
                                         disabled
                                     />
                                 </div>
                             </div>
                             
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Seller</label>
-                                    <input 
-                                        type="text" 
-                                        class="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed" 
-                                        bind:value={editedProduct.seller}
-                                        disabled
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Date Bought</label>
-                                    <input 
-                                        type="text" 
-                                        class="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 cursor-not-allowed" 
-                                        bind:value={editedProduct.dateBought}
-                                        disabled
-                                    />
-                                </div>
-                            </div>
                             
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Sold Status</label>
@@ -439,7 +438,7 @@
                                     <input 
                                         type="checkbox" 
                                         id="soldCheckbox"
-                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        class="text-black h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                         bind:checked={editedProduct.sold}
                                     />
                                     <label for="soldCheckbox" class="ml-2 block text-sm text-gray-900">
