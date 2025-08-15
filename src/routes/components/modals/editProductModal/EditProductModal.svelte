@@ -17,6 +17,11 @@
         }).format(value);
     };
 
+    // Add this helper function
+    function isEmptyOrZero(value) {
+        return value === '' || value === 0 || value === null || value === undefined;
+    }
+
 </script>
 
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -47,12 +52,6 @@
                     Product Details
                 </button>
                 <button 
-                    class={`px-6 py-3 font-medium text-sm ${activeTab === 'financial' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-                    on:click={() => activeTab = 'financial'}
-                >
-                    Financial Details
-                </button>
-                <button 
                     class={`px-6 py-3 font-medium text-sm ${activeTab === 'print' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
                     on:click={() => activeTab = 'print'}
                     disabled={!editedProduct}
@@ -70,49 +69,79 @@
                     <div class="space-y-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                                <div class="flex items-center mb-1">
+                                    <label class="block text-sm font-medium text-gray-700">SKU</label>
+                                    {#if isEmptyOrZero(editedProduct.sku)}
+                                        <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
+                                    {/if}
+                                </div>
                                 <input 
                                     type="text" 
-                                    class="text-black/50 w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-not-allowed" 
+                                    class={`text-black/50 w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-not-allowed
+                                        ${isEmptyOrZero(editedProduct.sku) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300 bg-gray-100'}`}
                                     bind:value={editedProduct.sku}
                                     disabled
                                 />
                             </div>
                             
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">IM SKU</label>
+                                <div class="flex items-center mb-1">
+                                    <label class="block text-sm font-medium text-gray-700">IM SKU</label>
+                                    {#if isEmptyOrZero(editedProduct.imSKU)}
+                                        <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
+                                    {/if}
+                                </div>
                                 <input 
                                     type="text" 
-                                    class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                    class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                        ${isEmptyOrZero(editedProduct.imSKU) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.imSKU}
                                 />
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                            <div class="flex items-center mb-1">
+                                <label class="block text-sm font-medium text-gray-700">Product Name</label>
+                                {#if isEmptyOrZero(editedProduct.name)}
+                                    <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
+                                {/if}
+                            </div>
                             <input 
                                 type="text" 
-                                class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                    ${isEmptyOrZero(editedProduct.name) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                 bind:value={editedProduct.name}
                             />
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label class="text-black block text-sm font-medium text-gray-700 mb-1">Selling Price (£)</label>
+                                <div class="flex items-center mb-1">
+                                    <label class="text-black block text-sm font-medium text-gray-700">Selling Price (£)</label>
+                                    {#if editedProduct.price === 0}
+                                        <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Zero</span>
+                                    {/if}
+                                </div>
                                 <input 
                                     type="number" 
                                     step="0.01"
-                                    class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                    class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                        ${editedProduct.price === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.price}
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Purchase Price (£)</label>
+                                <div class="flex items-center mb-1">
+                                    <label class="block text-sm font-medium text-gray-700">Purchase Price (£)</label>
+                                    {#if editedProduct.purchasePrice === 0}
+                                        <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Zero</span>
+                                    {/if}
+                                </div>
                                 <input 
                                     type="number" 
                                     step="0.01"
-                                    class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                    class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                        ${editedProduct.purchasePrice === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.purchasePrice}
                                 />
                             </div>
@@ -121,19 +150,31 @@
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Seller</label>
+                                <div class="flex items-center mb-1">
+                                    <label class="block text-sm font-medium text-gray-700">Seller</label>
+                                    {#if isEmptyOrZero(editedProduct.seller)}
+                                        <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
+                                    {/if}
+                                </div>
                                 <input 
                                     type="text" 
-                                    class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                    class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                        ${isEmptyOrZero(editedProduct.seller) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.seller}
                                 />
                             </div>
                             
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                                <div class="flex items-center mb-1">
+                                    <label class="block text-sm font-medium text-gray-700">Location</label>
+                                    {#if isEmptyOrZero(editedProduct.location)}
+                                        <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
+                                    {/if}
+                                </div>
                                 <input 
                                     type="text" 
-                                    class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                    class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                        ${isEmptyOrZero(editedProduct.location) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.location}
                                 />
                             </div>
@@ -141,14 +182,68 @@
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Date Bought</label>
+                                <div class="flex items-center mb-1">
+                                    <label class="block text-sm font-medium text-gray-700">Date Bought</label>
+                                    {#if isEmptyOrZero(editedProduct.dateBought)}
+                                        <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
+                                    {/if}
+                                </div>
                                 <input 
                                     type="text" 
-                                    class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                    class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                        ${isEmptyOrZero(editedProduct.dateBought) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.dateBought}
                                 />
                             </div>
+                            <div>
+                                <div class="flex items-center mb-1">
+                                    <label class="block text-sm font-medium text-gray-700">Date Sold</label>
+                                    {#if isEmptyOrZero(editedProduct.dateSold)}
+                                        <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
+                                    {/if}
+                                </div>
+                                <input 
+                                    type="text" 
+                                    class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                        ${isEmptyOrZero(editedProduct.dateSold) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                    bind:value={editedProduct.dateSold}
+                                />
+                            </div>
                             
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <div class="flex items-center mb-1">
+                                    <label class="block text-sm font-medium text-gray-700">Commission (£)</label>
+                                    {#if editedProduct.commission === 0}
+                                        <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Zero</span>
+                                    {/if}
+                                </div>
+                                <input 
+                                    type="number" 
+                                    step="0.01"
+                                    class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                        ${editedProduct.commission === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                    bind:value={editedProduct.commission}
+                                />
+                            </div>
+                            
+                            <div>
+                                <div class="flex items-center mb-1">
+                                    <label class="block text-sm font-medium text-gray-700">Invoice No</label>
+                                    {#if isEmptyOrZero(editedProduct.invoiceNo)}
+                                        <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
+                                    {/if}
+                                </div>
+                                <input 
+                                    type="text" 
+                                    class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                                        ${isEmptyOrZero(editedProduct.invoiceNo) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                    bind:value={editedProduct.invoiceNo}
+                                />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">On Website</label>
                                 <div class="flex items-center mt-2">
@@ -163,102 +258,37 @@
                                     </label>
                                 </div>
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Sold Status</label>
+                                <div class="flex items-center">
+                                    <input 
+                                        type="checkbox" 
+                                        id="soldCheckbox"
+                                        class="text-black h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        bind:checked={editedProduct.sold}
+                                    />
+                                    <label for="soldCheckbox" class="ml-2 block text-sm text-gray-900">
+                                        Mark as sold
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Sold Status</label>
-                            <div class="flex items-center">
-                                <input 
-                                    type="checkbox" 
-                                    id="soldCheckbox"
-                                    class="text-black h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                    bind:checked={editedProduct.sold}
-                                />
-                                <label for="soldCheckbox" class="ml-2 block text-sm text-gray-900">
-                                    Mark as sold
-                                </label>
+                        <!-- Validation Summary -->
+                        <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div class="flex items-center text-yellow-800">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                <span class="font-medium">Note on empty fields</span>
                             </div>
+                            <p class="text-sm text-yellow-700 mt-2">
+                                Yellow highlighted fields are empty or contain zero values. These fields are not required, 
+                                but you may want to review them before saving.
+                            </p>
                         </div>
                     </div>
                 
-                <!-- Financial Details Tab -->
-                {:else if activeTab === 'financial'}
-                    <div class="space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="bg-blue-50 p-4 rounded-lg">
-                                <div class="text-sm text-blue-700">Profit Potential</div>
-                                <div class="text-xl font-bold text-blue-800">
-                                    {formatCurrency(editedProduct.price - editedProduct.purchasePrice)}
-                                </div>
-                            </div>
-                            <div class="bg-green-50 p-4 rounded-lg">
-                                <div class="text-sm text-green-700">Commission</div>
-                                <div class="text-xl font-bold text-green-800">
-                                    {formatCurrency(editedProduct.commission)}
-                                </div>
-                            </div>
-                            <div class="bg-purple-50 p-4 rounded-lg">
-                                <div class="text-sm text-purple-700">Net Value</div>
-                                <div class="text-xl font-bold text-purple-800">
-                                    {formatCurrency(editedProduct.price - editedProduct.commission)}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Commission (£)</label>
-                                <input 
-                                    type="number" 
-                                    step="0.01"
-                                    class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                                    bind:value={editedProduct.commission}
-                                />
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Date Sold</label>
-                                <input 
-                                    type="text" 
-                                    class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                                    bind:value={editedProduct.dateSold}
-                                />
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Invoice No</label>
-                            <input 
-                                type="text" 
-                                class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                                bind:value={editedProduct.invoiceNo}
-                            />
-                        </div>
-                        
-                        <div class="bg-yellow-50 p-4 rounded-lg mt-4">
-                            <div class="text-sm text-yellow-700">Financial Summary</div>
-                            <div class="mt-2 space-y-1">
-                                <div class="flex justify-between">
-                                    <span>Purchase Price:</span>
-                                    <span>{formatCurrency(editedProduct.purchasePrice)}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span>Selling Price:</span>
-                                    <span>{formatCurrency(editedProduct.price)}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span>Commission:</span>
-                                    <span>-{formatCurrency(editedProduct.commission)}</span>
-                                </div>
-                                <div class="flex justify-between border-t border-gray-300 pt-1 font-medium">
-                                    <span>Net Profit:</span>
-                                    <span>{formatCurrency(editedProduct.price - editedProduct.purchasePrice - editedProduct.commission)}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                
-                <!-- Print Preview Tab -->
                 {:else}
                     <div class="bg-gray-50 p-4 rounded-lg mb-4">
                         <div class="flex items-center">
@@ -299,16 +329,6 @@
         
         <!-- Modal Footer -->
         <div class="p-6 border-t flex justify-end space-x-3">
-            <button 
-                on:click={() => { 
-                    if (activeTab === 'products') activeTab = 'financial';
-                    else if (activeTab === 'financial') activeTab = 'print';
-                    else activeTab = 'products';
-                }}
-                class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
-            >
-                {activeTab === 'print' ? 'Back to Details' : 'Next'}
-            </button>
             
             <button 
                 on:click={() => { showEditProductModal = false}}

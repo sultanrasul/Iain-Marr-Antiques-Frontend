@@ -1,11 +1,12 @@
 <script>
-  import { FolderSync, Printer } from "lucide-svelte";
+  import { FolderSync, Printer, Plus, PlusCircle } from "lucide-svelte";
 
     export let searchTerm = "";
     export let fetchProducts; // New function you can implement
     export let showPrintModal;
     export let activeTab;
     export let selectedProducts;
+    export let showAddProductModal;
     
     export let products;
     export let sortConfig;
@@ -44,14 +45,23 @@
 
     <!-- Refresh Stock Button -->
     <button 
+        on:click={() => {showAddProductModal = true;}}
+        class="px-4 py-2.5 rounded-lg font-medium flex items-center bg-green-600/80 text-white hover:bg-green-600 transition-colors"
+        title="Refresh stock"
+    >  
+        <PlusCircle size={30} class=""/>
+
+
+    </button>
+
+    <!-- Add Product Button -->
+    <button 
         on:click={fetchProducts}
         class="px-4 py-2.5 rounded-lg font-medium flex items-center bg-green-600/80 text-white hover:bg-green-600 transition-colors"
         title="Refresh stock"
     >  
-        <FolderSync size={30} class="pr-2"/>
-        <!-- <svg class="w-5 h-5 mr-2 animate-spin-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582M20 20v-5h-.581M4 20a9 9 0 0116-16M20 4a9 9 0 00-16 16"></path>
-        </svg> -->
-        Refresh 
+        <FolderSync size={30} class=""/>
+
+
     </button>
 </div>

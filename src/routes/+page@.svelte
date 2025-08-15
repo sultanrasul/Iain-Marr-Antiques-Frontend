@@ -3,6 +3,9 @@
 </svelte:head>
 
 <script>
+  import { updated } from '$app/state';
+  import AddProductModal from './components/modals/AddProductModal.svelte';
+
 // @ts-nocheck
 
   import EditProductModal from './components/modals/editProductModal/EditProductModal.svelte';
@@ -16,12 +19,22 @@
     import { BACKEND_URL } from './conf';
     import { onMount } from 'svelte';
     
+    /**
+   * @type {any[]}
+   */
     let products = [];
+    /**
+   * @type {any[]}
+   */
     let selectedProducts = [];
     let searchTerm = "";
 
     // Edit modal state
     let showEditProductModal = false;
+    let showAddProductModal = false;
+    /**
+   * @type {{ id: any; } | null}
+   */
     let editedProduct = null;
     let editActiveTab = 'products';
 
@@ -32,12 +45,15 @@
     let showEditPrintModal = false;
 
     let isLoading = false;
+    /**
+   * @type {string | null}
+   */
     let error = null;
     let showSoldItems = true;
     let sortConfig = { key: 'sku', direction: 'asc' };
 
     // Helper function to handle empty values
-    const getValue = (item, key, defaultValue = '') => {
+    const getValue = (/** @type {{ [x: string]: any; }} */ item, /** @type {string} */ key, defaultValue = '') => {
         return item[key] !== undefined && item[key] !== '' ? item[key] : defaultValue;
     };
 
@@ -62,7 +78,7 @@
             const data = await response.json();
             
             // Process data to match our UI needs
-            products = data.map(item => ({
+            products = data.map((/** @type {any} */ item) => ({
                 id: getValue(item, "SKU NO.", ''),
                 name: getValue(item, "ITEM DESCRIPTION", ''),
                 price: Number(getValue(item, "SELLING PRICE", 0)),
@@ -85,6 +101,39 @@
             isLoading = false;
         }
     }
+
+    async function updateProduct(editedProduct){
+        // Fetch data from your endpoint
+
+        try {
+            const response = await fetch(BACKEND_URL+'/modify_product', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    editedProduct: editedProduct
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+        } catch (err) {
+            console.error("Failed to fetch products:", err);
+            error = "Failed to load products. Please try again later.";
+        } finally {
+            isLoading = false;
+        }
+        
+
+        console.log("This is the new edited data", editedProduct);
+    }
+
 
     // Print selected products
     async function printLabels() {
@@ -115,6 +164,9 @@
     onMount(fetchProducts);
 
     // Handle sorting
+    /**
+   * @param {string} key
+   */
     function handleSort(key) {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -147,6 +199,9 @@
     );
 
     // Toggle product selection
+    /**
+   * @param {{ id: any; }} product
+   */
     function toggleProduct(product) {
         if (selectedProducts.find(p => p.id === product.id)) {
             selectedProducts = selectedProducts.filter(p => p.id !== product.id);
@@ -164,6 +219,9 @@
         }
     }
 
+    /**
+   * @param {any} product
+   */
     function openEditModal(product) {
         editedProduct = {...product};
         editActiveTab = 'products';
@@ -173,6 +231,9 @@
         showPrintModal = true;
     }
 
+    /**
+   * @param {any} editedProduct
+   */
 
     // Save edited product
     function saveEditedProduct() {
@@ -180,10 +241,12 @@
             products = products.map(p =>
                 p.id === editedProduct.id ? editedProduct : p
             );
+            updateProduct(editedProduct);
             editedProduct = null;
             showEditProductModal = false;
         }
     }
+
 
     function printSelected() {
         printLabels();
@@ -195,7 +258,7 @@
     }
     
     // Format currency
-    const formatCurrency = (value) => {
+    const formatCurrency = (/** @type {string | number | bigint} */ value) => {
         return new Intl.NumberFormat('en-GB', {
             style: 'currency',
             currency: 'GBP'
@@ -240,7 +303,7 @@
         <!-- Main Content -->
         {:else}
             <!-- Controls -->
-            <SearchBar openPrintModal={openPrintModal} fetchProducts={fetchProducts} bind:searchTerm={searchTerm}  bind:showSoldItems={showSoldItems} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
+            <SearchBar openPrintModal={openPrintModal} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm}  bind:showSoldItems={showSoldItems} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
 
             <!-- Stats Summary -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -309,6 +372,14 @@
             bind:showEditProductModal={showEditProductModal}
             bind:activeTab={editActiveTab}
             saveEditedProduct={saveEditedProduct}
+        />
+    {/if}
+
+    <!-- Add Product Modal -->
+    {#if showAddProductModal}
+        <AddProductModal
+            bind:showAddProductModal={showAddProductModal}
+            bind:products={products}
         />
     {/if}
 
