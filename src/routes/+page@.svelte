@@ -63,20 +63,20 @@
             
             // Process data to match our UI needs
             products = data.map(item => ({
-                id: getValue(item, "SKU NO.", 'N/A'),
-                name: getValue(item, "ITEM DESCRIPTION", 'Unnamed Item'),
+                id: getValue(item, "SKU NO.", ''),
+                name: getValue(item, "ITEM DESCRIPTION", ''),
                 price: Number(getValue(item, "SELLING PRICE", 0)),
-                imSKU: getValue(item, "IM SKU", 'N/A'),
-                sku: getValue(item, "SKU NO.", 'N/A'),
+                imSKU: getValue(item, "IM SKU", ''),
+                sku: getValue(item, "SKU NO.", ''),
                 purchasePrice: Number(getValue(item, "PURCHASE PRICE", 0)),
-                seller: getValue(item, "NAME/ADDRESS SELLER", 'Unknown Seller'),
-                dateBought: getValue(item, "DATE BOUGHT", 'Unknown Date'),
+                seller: getValue(item, "NAME/ADDRESS SELLER", ''),
+                dateBought: getValue(item, "DATE BOUGHT", ''),
                 sold: getValue(item, "SOLD", "FALSE") === "TRUE",
                 commission: getValue(item, "Commission £", 0),
                 dateSold: getValue(item, "DATE SOLD", ''),
                 invoiceNo: getValue(item, "INVOICE NO. XERO", ''),
                 onWebsite: getValue(item, "ON WEBSITE", "FALSE") === "TRUE",
-                location: getValue(item, "location", 'Unknown Location')
+                location: getValue(item, "location", '')
             }));
         } catch (err) {
             console.error("Failed to fetch products:", err);
