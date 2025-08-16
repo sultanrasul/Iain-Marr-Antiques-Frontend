@@ -3,16 +3,10 @@
 </svelte:head>
 
 <script>
-  import { updated } from '$app/state';
-  import AddProductModal from './components/modals/AddProductModal.svelte';
-
-// @ts-nocheck
-
-  import EditProductModal from './components/modals/editProductModal/EditProductModal.svelte';
-  import EditPrintModal from './components/modals/editProductModal/EditProductModal.svelte';
-
-    // @ts-nocheck
-
+    import { updated } from '$app/state';
+    import { Printer } from 'lucide-svelte';
+    import AddProductModal from './components/modals/AddProductModal.svelte';
+    import EditProductModal from './components/modals/editProductModal/EditProductModal.svelte';
     import PrintModal from './components/modals/printModal/PrintModal.svelte';
     import Products from './components/Products.svelte';
     import SearchBar from './components/SearchBar.svelte';
@@ -51,6 +45,13 @@
     let error = null;
     let showSoldItems = true;
     let sortConfig = { key: 'sku', direction: 'asc' };
+    
+    // Add new sort options
+    let sortOptions = [
+        { id: 'sku', name: 'SKU' },
+        { id: 'name', name: 'Name' },
+        { id: 'price', name: 'Price' },
+    ];
 
     // Helper function to handle empty values
     const getValue = (/** @type {{ [x: string]: any; }} */ item, /** @type {string} */ key, defaultValue = '') => {
@@ -102,64 +103,6 @@
         }
     }
 
-    async function updateProduct(editedProduct){
-        // Fetch data from your endpoint
-
-        try {
-            const response = await fetch(BACKEND_URL+'/modify_product', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    editedProduct: editedProduct
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-        } catch (err) {
-            console.error("Failed to fetch products:", err);
-            error = "Failed to load products. Please try again later.";
-        } finally {
-            isLoading = false;
-        }
-        
-
-        console.log("This is the new edited data", editedProduct);
-    }
-
-
-    // Print selected products
-    async function printLabels() {
-        try {
-            const response = await fetch(BACKEND_URL+'/print_labels', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    selectedProducts: selectedProducts
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            alert(`Successfully printed ${selectedProducts.length} labels!`);
-            selectedProducts = [];
-            showPrintModal = false;
-        } catch (err) {
-            console.error("Failed to print labels", err);
-            alert("Failed to print labels. Please check the console for details.");
-        }
-    }
 
     onMount(fetchProducts);
 
@@ -177,12 +120,31 @@
 
     // Sort products based on sortConfig
     $: sortedProducts = [...products].sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-            return sortConfig.direction === 'asc' ? -1 : 1;
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+        
+        // Special handling for SKU sorting - simply reverse the array
+        if (sortConfig.key === 'sku') {
+            return sortConfig.direction === 'asc' ? 0 : -1;
         }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-            return sortConfig.direction === 'asc' ? 1 : -1;
+        
+        // Handle numbers
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+            return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
         }
+        
+        // Handle strings
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+            aValue = aValue.toLowerCase();
+            bValue = bValue.toLowerCase();
+            if (aValue < bValue) {
+                return sortConfig.direction === 'asc' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+        }
+        
         return 0;
     });
 
@@ -235,22 +197,6 @@
    * @param {any} editedProduct
    */
 
-    // Save edited product
-    function saveEditedProduct() {
-        if (editedProduct) {
-            products = products.map(p =>
-                p.id === editedProduct.id ? editedProduct : p
-            );
-            updateProduct(editedProduct);
-            editedProduct = null;
-            showEditProductModal = false;
-        }
-    }
-
-
-    function printSelected() {
-        printLabels();
-    }
     
     // Toggle sold item visibility
     function toggleSoldItems() {
@@ -302,6 +248,33 @@
             </div>
         <!-- Main Content -->
         {:else}
+            <!-- Sort Controls -->
+            <div class="rounded-xl  p-4 mb-6 flex justify-center">
+                <div class="bg-white rounded-xl shadow-lg p-4 max-w-[300px] w-full text-center">
+                    <div class="flex flex-col items-center">
+                        <h3 class="text-sm font-medium text-gray-700 mb-3">Sort By</h3>
+                        <div class="flex flex-wrap justify-center gap-2">
+                            {#each sortOptions as option}
+                                <button
+                                    class={`px-3 py-1.5 text-sm rounded-full border transition-colors flex items-center
+                                        ${sortConfig.key === option.id ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'}`}
+                                    on:click={() => handleSort(option.id)}
+                                >
+                                    <span>{option.name}</span>
+                                    {#if sortConfig.key === option.id}
+                                        <svg class={`ml-1.5 w-4 h-4 ${sortConfig.direction === 'asc' ? '' : 'transform rotate-180'}`} 
+                                            fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                                        </svg>
+                                    {/if}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
             <!-- Controls -->
             <SearchBar openPrintModal={openPrintModal} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm}  bind:showSoldItems={showSoldItems} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
 
@@ -346,8 +319,6 @@
                 openEditModal={openEditModal} 
                 bind:showSoldItems={showSoldItems}
             />
-
-
             
             <!-- Select All Button -->
             {#if filteredProducts.length > 0}
@@ -365,13 +336,26 @@
         {/if}
     </div>
     
+    <!-- Floating Action Button -->
+    {#if selectedProducts.length > 0}
+        <button 
+            on:click={openPrintModal}
+            class="fab-enter fixed bottom-6 right-6 z-50 p-4 bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white flex items-center justify-center"
+        >
+            <Printer size={30} />
+            <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
+                {selectedProducts.length}
+            </span>
+        </button>
+    {/if}
+    
     <!-- Print/Edit Modal -->
     {#if showEditProductModal}
         <EditProductModal
             bind:editedProduct={editedProduct}
             bind:showEditProductModal={showEditProductModal}
             bind:activeTab={editActiveTab}
-            saveEditedProduct={saveEditedProduct}
+            bind:products={products}
         />
     {/if}
 
@@ -387,16 +371,8 @@
         <PrintModal
             bind:selectedProducts={selectedProducts}
             bind:showPrintModal={showPrintModal}
-            printSelected={printSelected}
         />
     {/if}
-
-    <!-- {#if showEditPrintModal}
-        <EditPrintModal/>
-    {/if} -->
-
-    
-
 </div>
 
 <style>
@@ -417,5 +393,21 @@
     
     .overflow-y-auto::-webkit-scrollbar-thumb:hover {
         background: #a8a8a8;
+    }
+    
+    /* Custom styles for the floating action button */
+    .fab-enter {
+        animation: fabEnter 0.3s ease-out forwards;
+    }
+    
+    @keyframes fabEnter {
+        from {
+            transform: translateY(100px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
     }
 </style>

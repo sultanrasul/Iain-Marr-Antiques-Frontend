@@ -1,14 +1,23 @@
 <script>
-// @ts-nocheck
-
+    // @ts-nocheck
+    import { BACKEND_URL } from "../../../conf";
+    import { onMount } from 'svelte';
+    import { toast } from 'svelte-sonner';
+    
     export let editedProduct;
     export let showEditProductModal;
     export let activeTab;
-    export let saveEditedProduct;
-    export let printSelected;
-    export let selectedProducts;
-    export let openEditModal;
-
+    export let products;
+    
+    // New states
+    let isSaving = false;
+    let originalProduct = null;
+    // let toast = {
+    //     show: false,
+    //     message: '',
+    //     type: 'success' // 'success' or 'error'
+    // };
+    
     // Format currency
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('en-GB', {
@@ -16,15 +25,89 @@
             currency: 'GBP'
         }).format(value);
     };
-
+    
     // Add this helper function
     function isEmptyOrZero(value) {
         return value === '' || value === 0 || value === null || value === undefined;
     }
+    
+    // Check if changes were made
+    function hasChanges() {
+        return JSON.stringify(originalProduct) !== JSON.stringify(editedProduct);
+    }
 
+    $: if (editedProduct && !originalProduct) {
+        originalProduct = JSON.parse(JSON.stringify(editedProduct));
+    }
+
+    
+    async function updateProduct(editedProduct) {
+        try {
+            const response = await fetch(BACKEND_URL + '/modify_product', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    editedProduct: editedProduct
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (err) {
+            console.error("Failed to update product:", err);
+            throw new Error("Failed to update product. Please try again later.");
+        }
+    }
+    
+    // Save edited product
+    async function saveEditedProduct() {
+        if (!hasChanges()) return;
+        
+        isSaving = true;
+        
+        try {
+            await updateProduct(editedProduct);
+            
+            // Update products list
+            products = products.map(p =>
+                p.id === editedProduct.id ? editedProduct : p
+            );
+            
+            // Update original product reference
+            originalProduct = JSON.parse(JSON.stringify(editedProduct));
+
+            toast.success('Product updated successfully!');
+
+            showEditProductModal = false;
+            
+        } catch (error) {
+            console.error("Save error:", error);
+            toast.error(error.message || 'Failed to update product', 'error');
+        } finally {
+            isSaving = false;
+        }
+    }
+    
+    // Initialize when modal opens
+    onMount(() => {
+        if (editedProduct) {
+            // Store original state for change detection
+            originalProduct = JSON.parse(JSON.stringify(editedProduct));
+            console.log(originalProduct)
+        }
+    });
 </script>
 
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <!-- Toast Notification -->
+
+    
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <!-- Modal Header -->
         <div class="p-6 border-b flex justify-between items-center">
@@ -35,6 +118,7 @@
             <button
                 on:click={() => { showEditProductModal = false; }}
                 class="text-gray-400 hover:text-gray-600"
+                disabled={isSaving}
             >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -48,13 +132,14 @@
                 <button 
                     class={`px-6 py-3 font-medium text-sm ${activeTab === 'products' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
                     on:click={() => activeTab = 'products'}
+                    disabled={isSaving}
                 >
                     Product Details
                 </button>
                 <button 
                     class={`px-6 py-3 font-medium text-sm ${activeTab === 'print' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
                     on:click={() => activeTab = 'print'}
-                    disabled={!editedProduct}
+                    disabled={!editedProduct || isSaving}
                 >
                     Print Preview
                 </button>
@@ -96,6 +181,7 @@
                                     class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                         ${isEmptyOrZero(editedProduct.imSKU) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.imSKU}
+                                    disabled={isSaving}
                                 />
                             </div>
                         </div>
@@ -111,6 +197,7 @@
                                 class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                     ${isEmptyOrZero(editedProduct.name) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                 bind:value={editedProduct.name}
+                                disabled={isSaving}
                             />
                         </div>
                         
@@ -128,6 +215,7 @@
                                     class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                         ${editedProduct.price === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.price}
+                                    disabled={isSaving}
                                 />
                             </div>
                             <div>
@@ -143,6 +231,7 @@
                                     class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                         ${editedProduct.purchasePrice === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.purchasePrice}
+                                    disabled={isSaving}
                                 />
                             </div>
                         </div>
@@ -161,6 +250,7 @@
                                     class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                         ${isEmptyOrZero(editedProduct.seller) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.seller}
+                                    disabled={isSaving}
                                 />
                             </div>
                             
@@ -176,6 +266,7 @@
                                     class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                         ${isEmptyOrZero(editedProduct.location) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.location}
+                                    disabled={isSaving}
                                 />
                             </div>
                         </div>
@@ -193,6 +284,7 @@
                                     class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                         ${isEmptyOrZero(editedProduct.dateBought) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.dateBought}
+                                    disabled={isSaving}
                                 />
                             </div>
                             <div>
@@ -207,6 +299,7 @@
                                     class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                         ${isEmptyOrZero(editedProduct.dateSold) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.dateSold}
+                                    disabled={isSaving}
                                 />
                             </div>
                             
@@ -225,6 +318,7 @@
                                     class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                         ${editedProduct.commission === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.commission}
+                                    disabled={isSaving}
                                 />
                             </div>
                             
@@ -240,6 +334,7 @@
                                     class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                                         ${isEmptyOrZero(editedProduct.invoiceNo) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                                     bind:value={editedProduct.invoiceNo}
+                                    disabled={isSaving}
                                 />
                             </div>
                         </div>
@@ -252,6 +347,7 @@
                                         id="onWebsite"
                                         class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                         bind:checked={editedProduct.onWebsite}
+                                        disabled={isSaving}
                                     />
                                     <label for="onWebsite" class="ml-2 block text-sm text-gray-900">
                                         Published on website
@@ -266,6 +362,7 @@
                                         id="soldCheckbox"
                                         class="text-black h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                         bind:checked={editedProduct.sold}
+                                        disabled={isSaving}
                                     />
                                     <label for="soldCheckbox" class="ml-2 block text-sm text-gray-900">
                                         Mark as sold
@@ -329,20 +426,65 @@
         
         <!-- Modal Footer -->
         <div class="p-6 border-t flex justify-end space-x-3">
-            
             <button 
-                on:click={() => { showEditProductModal = false}}
+                on:click={() => { showEditProductModal = false; }}
                 class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+                disabled={isSaving}
             >
                 Cancel
             </button>
             
             <button 
                 on:click={saveEditedProduct}
-                class="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+                class="px-5 py-2.5 rounded-lg flex items-center justify-center min-w-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
+                class:bg-blue-600={!isSaving && hasChanges()}
+                class:bg-gray-400={!hasChanges() || isSaving}
+                class:hover:bg-blue-700={!isSaving && hasChanges()}
+                disabled={!hasChanges() || isSaving}
             >
-                Save Changes
+                {#if isSaving}
+                    <!-- Spinner -->
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-white">Saving...</span>
+                {:else}
+                    <span class="text-white">Save Changes</span>
+                {/if}
             </button>
         </div>
     </div>
 </div>
+
+<style>
+    /* Spinner animation */
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    /* Smooth transitions */
+    button, input, .bg-yellow-50 {
+        transition: all 0.2s ease;
+    }
+    
+    /* Toast animation */
+    .toast-enter {
+        animation: toast-enter 0.3s ease-out forwards;
+    }
+    
+    @keyframes toast-enter {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>

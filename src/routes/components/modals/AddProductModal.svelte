@@ -1,12 +1,13 @@
 <script>
   import { BACKEND_URL } from "../../conf";
+  import { toast } from "svelte-sonner";
 
 // @ts-nocheck
 
     export let saveEditedProduct;
     export let showAddProductModal;
     export let products;
-    let isLoading;
+    let isLoading = false;
     let error = null;
 
     
@@ -50,19 +51,18 @@
             };
 
 
-    async function addProduct(editedProduct){
-        // Fetch data from your endpoint
+    async function addProduct() {
         isLoading = true;
-
+        
         try {
             const response = await fetch(BACKEND_URL+'/add_product', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    product: product
+                product: product
                 })
             });
             
@@ -71,16 +71,17 @@
             }
             
             const data = await response.json();
+            toast.success('Product added successfully!');
+            
+            // Close the modal after a short delay
+            showAddProductModal = false;
             
         } catch (err) {
-            console.error("Failed to fetch products:", err);
-            error = "Failed to load products. Please try again later.";
+            console.error("Failed to add product:", err);
+            toast.error('Failed to add product. Please try again.');
         } finally {
             isLoading = false;
         }
-        
-
-        console.log("This is the new edited data", editedProduct);
     }
 
     // Format currency
@@ -103,7 +104,7 @@
         <!-- Modal Header -->
         <div class="p-6 border-b flex justify-between items-center">
             <h2 class="text-xl font-bold text-gray-800">
-                Edit Product
+                Add Product
             </h2>
             <!-- svelte-ignore a11y_consider_explicit_label -->
             <button
@@ -116,24 +117,6 @@
             </button>
         </div>
         
-        <!-- Tab Navigation -->
-        <div class="border-b">
-            <div class="flex">
-                <button 
-                    class={`px-6 py-3 font-medium text-sm ${activeTab === 'products' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-                    on:click={() => activeTab = 'products'}
-                >
-                    Product Details
-                </button>
-                <button 
-                    class={`px-6 py-3 font-medium text-sm ${activeTab === 'print' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-                    on:click={() => activeTab = 'print'}
-                    disabled={!product}
-                >
-                    Print Preview
-                </button>
-            </div>
-        </div>
 
         <!-- Modal Content -->
         <div class="flex-1 overflow-y-auto p-6">
@@ -373,11 +356,26 @@
                 Cancel
             </button>
             
+
             <button 
                 on:click={addProduct}
-                class="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+                class="px-5 py-2.5 rounded-lg flex items-center justify-center min-w-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
+                class:bg-blue-600={!isLoading}
+                class:bg-gray-400={isLoading}
+                class:hover:bg-blue-700={!isLoading}
+                disabled={isLoading}
             >
-                Add Product
+                {#if isLoading}
+                    <!-- Spinner -->
+                    <svg class=" animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-white">Adding...</span>
+                    {:else}
+
+                    <span class="text-white">Add Product</span>
+                {/if}
             </button>
         </div>
     </div>

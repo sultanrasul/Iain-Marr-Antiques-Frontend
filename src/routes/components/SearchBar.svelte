@@ -47,7 +47,7 @@
     <button 
         on:click={() => {showAddProductModal = true;}}
         class="px-4 py-2.5 rounded-lg font-medium flex items-center bg-green-600/80 text-white hover:bg-green-600 transition-colors"
-        title="Refresh stock"
+        title="Add stock"
     >  
         <PlusCircle size={30} class=""/>
 
