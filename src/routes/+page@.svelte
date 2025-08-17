@@ -248,35 +248,9 @@
             </div>
         <!-- Main Content -->
         {:else}
-            <!-- Sort Controls -->
-            <div class="rounded-xl  p-4 mb-6 flex justify-center">
-                <div class="bg-white rounded-xl shadow-lg p-4 max-w-[300px] w-full text-center">
-                    <div class="flex flex-col items-center">
-                        <h3 class="text-sm font-medium text-gray-700 mb-3">Sort By</h3>
-                        <div class="flex flex-wrap justify-center gap-2">
-                            {#each sortOptions as option}
-                                <button
-                                    class={`px-3 py-1.5 text-sm rounded-full border transition-colors flex items-center
-                                        ${sortConfig.key === option.id ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'}`}
-                                    on:click={() => handleSort(option.id)}
-                                >
-                                    <span>{option.name}</span>
-                                    {#if sortConfig.key === option.id}
-                                        <svg class={`ml-1.5 w-4 h-4 ${sortConfig.direction === 'asc' ? '' : 'transform rotate-180'}`} 
-                                            fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
-                                        </svg>
-                                    {/if}
-                                </button>
-                            {/each}
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Controls -->
-            <!-- Controls -->
-            <SearchBar openPrintModal={openPrintModal} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm}  bind:showSoldItems={showSoldItems} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
+            <SearchBar bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} openPrintModal={openPrintModal} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm}  bind:showSoldItems={showSoldItems} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
 
             <!-- Stats Summary -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
