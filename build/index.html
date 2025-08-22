@@ -13,14 +13,14 @@
 	<link rel="shortcut icon" href="/favicon.ico" />
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 	<meta name="apple-mobile-web-app-title" content="I.M.A" />
-	<link rel="manifest" href="/site.webmanifest" />
+	<link rel="manifest" href="/manifest.json" />
 
 	<title>Iain Marr Antiques</title>
 	
-		<link rel="modulepreload" href="/_app/immutable/entry/start.DTeEncAp.js">
-		<link rel="modulepreload" href="/_app/immutable/chunks/CWurbmdz.js">
+		<link rel="modulepreload" href="/_app/immutable/entry/start.DTVT8n06.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/BLWKJvA7.js">
 		<link rel="modulepreload" href="/_app/immutable/chunks/DDLtgsC2.js">
-		<link rel="modulepreload" href="/_app/immutable/entry/app.DJohaSjk.js">
+		<link rel="modulepreload" href="/_app/immutable/entry/app.6zQQ9Bao.js">
 		<link rel="modulepreload" href="/_app/immutable/chunks/DaN96dIN.js">
 		<link rel="modulepreload" href="/_app/immutable/chunks/D_Rvj4zC.js">
 		<link rel="modulepreload" href="/_app/immutable/chunks/DSwRa_vl.js">
@@ -35,18 +35,24 @@
 	<div style="display: contents">
 			<script>
 				{
-					__sveltekit_1t6ui58 = {
+					__sveltekit_9xrftm = {
 						base: ""
 					};
 
 					const element = document.currentScript.parentElement;
 
 					Promise.all([
-						import("/_app/immutable/entry/start.DTeEncAp.js"),
-						import("/_app/immutable/entry/app.DJohaSjk.js")
+						import("/_app/immutable/entry/start.DTVT8n06.js"),
+						import("/_app/immutable/entry/app.6zQQ9Bao.js")
 					]).then(([kit, app]) => {
 						kit.start(app, element);
 					});
+
+					if ('serviceWorker' in navigator) {
+						addEventListener('load', function () {
+							navigator.serviceWorker.register('/service-worker.js');
+						});
+					}
 				}
 			</script>
 		</div>
