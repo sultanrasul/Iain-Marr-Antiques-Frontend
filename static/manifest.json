@@ -1,6 +1,8 @@
 {
   "name": "Iain Marr Antiques",
   "short_name": "I.M.A",
+  "start_url": "/",
+  "description": "Iain Marr Antiques Inventory Management System",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
