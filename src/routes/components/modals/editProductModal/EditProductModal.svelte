@@ -127,7 +127,7 @@
         </div>
         
         <!-- Tab Navigation -->
-        <div class="border-b">
+        <!-- <div class="border-b">
             <div class="flex">
                 <button 
                     class={`px-6 py-3 font-medium text-sm ${activeTab === 'products' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
@@ -144,7 +144,7 @@
                     Print Preview
                 </button>
             </div>
-        </div>
+        </div> -->
 
         <!-- Modal Content -->
         <div class="flex-1 overflow-y-auto p-6">

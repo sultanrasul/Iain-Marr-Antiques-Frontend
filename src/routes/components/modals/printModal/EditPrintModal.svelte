@@ -99,12 +99,6 @@
         
         <!-- Modal Footer -->
         <div class="p-6 border-t flex justify-end space-x-3">
-            <button 
-                on:click={() => {}}
-                class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
-            >
-                print
-            </button>
             
             <button 
                 on:click={() => { showEditPrintModal = false}}
