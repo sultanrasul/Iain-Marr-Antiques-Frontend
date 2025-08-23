@@ -15,58 +15,59 @@
   let markAsSold = true; // New variable for marking as sold
 
   // Print selected products
-async function printLabels() {
-  isLoading = true;
-  try {
-    const response = await fetch(BACKEND_URL+'/print_labels', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        selectedProducts: selectedProducts,
-        customerName: customerName, // Include customer name in the request
-        logSold: markAsSold // Include mark as sold flag
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    // Update the sold status in the main products array if markAsSold is true
-    if (markAsSold) {
-      // Create a Set of selected product IDs for faster lookup
-      const selectedProductIds = new Set(selectedProducts.map(p => p.id));
-      
-      // Update the main products array
-      products = products.map(product => {
-        if (selectedProductIds.has(product.id)) {
-          return { ...product, sold: true };
-        }
-        return product;
+  async function printLabels() {
+    isLoading = true;
+    try {
+      const response = await fetch(BACKEND_URL+'/print_labels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          selectedProducts: selectedProducts,
+          customerName: customerName,
+          logSold: markAsSold
+        })
       });
       
-      // Also update the selectedProducts array for consistency
-      selectedProducts = selectedProducts.map(product => ({
-        ...product,
-        sold: true
-      }));
+      const result = await response.json();
+
+      if (!response.ok) {
+        // Custom error from backend
+        if (result.error) {
+          throw new Error(result.error);
+        } else {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+      }
+
+      // Update sold status if necessary
+      if (markAsSold) {
+        const selectedProductIds = new Set(selectedProducts.map(p => p.id));
+        products = products.map(product => {
+          if (selectedProductIds.has(product.id)) {
+            return { ...product, sold: true };
+          }
+          return product;
+        });
+        selectedProducts = selectedProducts.map(product => ({ ...product, sold: true }));
+      }
+
+      toast.success(`Successfully printed ${selectedProducts.length} label(s)!`);
+      selectedProducts = [];
+      customerName = "";
+      markAsSold = false;
+      showPrintModal = false;
+
+    } catch (err) {
+      console.error("Failed to print labels", err);
+      toast.error(err.message || "Failed to print labels. Please check the console for details.");
+    } finally {
+      isLoading = false;
     }
-    
-    toast.success(`Successfully printed ${selectedProducts.length} label(s)!`);
-    selectedProducts = [];
-    customerName = ""; // Reset customer name after printing
-    markAsSold = false; // Reset the checkbox
-    showPrintModal = false;
-  } catch (err) {
-    console.error("Failed to print labels", err);
-    toast.error("Failed to print labels. Please check the console for details.")
-  } finally {
-    isLoading = false;
   }
-}
+
 
   // Function to remove a product from selected items
   function removeProduct(product) {
