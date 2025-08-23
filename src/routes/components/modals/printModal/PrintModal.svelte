@@ -6,42 +6,67 @@
 
   export let showPrintModal;
   export let selectedProducts;
+  export let products;
 
   let isLoading = false;
   let showEditPrintModal;
   let editedProduct = null;
   let customerName = ""; // New variable for customer name
+  let markAsSold = true; // New variable for marking as sold
 
   // Print selected products
-  async function printLabels() {
-    isLoading = true;
-    try {
-      const response = await fetch(BACKEND_URL+'/print_labels', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          selectedProducts: selectedProducts,
-          customerName: customerName // Include customer name in the request
-        })
+async function printLabels() {
+  isLoading = true;
+  try {
+    const response = await fetch(BACKEND_URL+'/print_labels', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        selectedProducts: selectedProducts,
+        customerName: customerName, // Include customer name in the request
+        logSold: markAsSold // Include mark as sold flag
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    // Update the sold status in the main products array if markAsSold is true
+    if (markAsSold) {
+      // Create a Set of selected product IDs for faster lookup
+      const selectedProductIds = new Set(selectedProducts.map(p => p.id));
+      
+      // Update the main products array
+      products = products.map(product => {
+        if (selectedProductIds.has(product.id)) {
+          return { ...product, sold: true };
+        }
+        return product;
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      toast.success(`Successfully printed ${selectedProducts.length} label(s)!`);
-      selectedProducts = [];
-      customerName = ""; // Reset customer name after printing
-      showPrintModal = false;
-    } catch (err) {
-      console.error("Failed to print labels", err);
-      toast.error("Failed to print labels. Please check the console for details.")
-    } finally {
-      isLoading = false;
+      // Also update the selectedProducts array for consistency
+      selectedProducts = selectedProducts.map(product => ({
+        ...product,
+        sold: true
+      }));
     }
+    
+    toast.success(`Successfully printed ${selectedProducts.length} label(s)!`);
+    selectedProducts = [];
+    customerName = ""; // Reset customer name after printing
+    markAsSold = false; // Reset the checkbox
+    showPrintModal = false;
+  } catch (err) {
+    console.error("Failed to print labels", err);
+    toast.error("Failed to print labels. Please check the console for details.")
+  } finally {
+    isLoading = false;
   }
+}
 
   // Function to remove a product from selected items
   function removeProduct(product) {
@@ -65,7 +90,7 @@
         Print Receipts
       </h2>
       <button
-        on:click={() => { showPrintModal = false; customerName = ''; }}
+        on:click={() => { showPrintModal = false; customerName = ''; markAsSold = false; }}
         class="text-gray-400 hover:text-gray-600"
       >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -90,6 +115,30 @@
         />
         <p class="mt-1 text-sm text-gray-500">
           The customer name will be printed on the receipt if provided.
+        </p>
+      </div>
+      
+      <!-- Mark as Sold Checkbox -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200 cursor-pointer" on:click={() => {markAsSold=!markAsSold}}>
+        <div class="flex items-center">
+          <input
+            id="markAsSold"
+            type="checkbox"
+            bind:checked={markAsSold}
+            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          />
+          <div  class="ml-2 block text-sm font-medium text-gray-700">
+            Mark as Sold and Add to Sold Inventory
+          </div>
+        </div>
+        <p class="mt-1 text-sm text-blue-600">
+          {#if markAsSold}
+            Items will be marked as sold in your inventory and added to the sold items sheet.
+          {:else}
+            Items will remain available in your inventory after printing.
+          {/if}
         </p>
       </div>
       
@@ -166,7 +215,7 @@
     <!-- Modal Footer -->
     <div class="p-6 border-t flex justify-end space-x-3">
       <button 
-        on:click={() => { showPrintModal = false; customerName = ''; }}
+        on:click={() => { showPrintModal = false; customerName = ''; markAsSold = false; }}
         class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
       >
         Back
@@ -188,7 +237,9 @@
           </svg>
           <span class="text-white">Printing...</span>
         {:else}
-          <span class="text-white">Print Receipts</span>
+          <span class="text-white">
+            {markAsSold ? 'Print & Mark Sold' : 'Print Receipts'}
+          </span>
         {/if}
       </button>
     </div>

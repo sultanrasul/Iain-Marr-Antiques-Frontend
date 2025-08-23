@@ -53,6 +53,8 @@
         { id: 'price', name: 'Price' },
     ];
 
+    let printerConnected;
+
     // Helper function to handle empty values
     const getValue = (/** @type {{ [x: string]: any; }} */ item, /** @type {string} */ key, defaultValue = '') => {
         return item[key] !== undefined && item[key] !== '' ? item[key] : defaultValue;
@@ -77,9 +79,12 @@
             }
             
             const data = await response.json();
+
+            const responceProducts = data["data"];
+            printerConnected = data["printer_connected"];
             
             // Process data to match our UI needs
-            products = data.map((/** @type {any} */ item) => ({
+            products = responceProducts.map((/** @type {any} */ item) => ({
                 id: getValue(item, "SKU NO.", ''),
                 name: getValue(item, "ITEM DESCRIPTION", ''),
                 price: Number(getValue(item, "SELLING PRICE", 0)),
@@ -250,7 +255,7 @@
         {:else}
 
             <!-- Controls -->
-            <SearchBar bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} openPrintModal={openPrintModal} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm}  bind:showSoldItems={showSoldItems} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
+            <SearchBar bind:printerConnected={printerConnected} bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} openPrintModal={openPrintModal} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm}  bind:showSoldItems={showSoldItems} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
 
             <!-- Stats Summary -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -340,11 +345,12 @@
             bind:products={products}
         />
     {/if}
-
+            
     {#if showPrintModal}
         <PrintModal
             bind:selectedProducts={selectedProducts}
             bind:showPrintModal={showPrintModal}
+            bind:products={products}
         />
     {/if}
 </div>

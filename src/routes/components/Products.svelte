@@ -15,12 +15,11 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div 
             class={`bg-white rounded-xl shadow-md overflow-hidden border-2 transition-all duration-200 relative cursor-pointer
-                ${selectedProducts.find(p => p.id === product.id) ? 'border-blue-500 shadow-lg' : 'border-transparent'}
-                ${product.sold ? 'opacity-80' : ''}`}
+                ${selectedProducts.find(p => p.id === product.id) ? 'border-blue-500 shadow-lg' : 'border-transparent'}`}
             on:click={() => toggleProduct(product)}
         >
             {#if product.sold}
-                <div class="absolute top-3 right-3 px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded-full">
+                <div class="absolute top-14 right-3 px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded-full">
                     SOLD
                 </div>
             {/if}
@@ -31,15 +30,15 @@
                         <h3 class="font-semibold text-gray-800 truncate">{product.name}</h3>
                         <div class="mt-1">
                             <span class="text-xl font-bold text-blue-600">£{product.price.toFixed(2)}</span>
-                            {#if product.sold}
+                            <!-- {#if product.sold}
                                 <span class="ml-2 text-sm text-red-600">(Sold)</span>
-                            {/if}
+                            {/if} -->
                         </div>
                     </div>
                     <!-- svelte-ignore a11y_consider_explicit_label -->
                     <button 
                         on:click|stopPropagation={() => openEditModal(product)}
-                        class={`p-2 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors flex items-center group ${product.sold ? 'opacity-70' : ''}`}
+                        class={`p-2 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors flex items-center group `}
                         title="Edit Print Info"
                     >
                         <svg class="w-5 h-5 text-blue-600 group-hover:text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
