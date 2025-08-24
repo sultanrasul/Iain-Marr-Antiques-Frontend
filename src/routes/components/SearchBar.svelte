@@ -39,16 +39,18 @@
 
   // Restart Raspberry Pi
   async function restartPi() {
-    try {
-      const response = await fetch(`${BACKEND_URL}/restart`, { method: "POST" });
-      if (response.ok) {
-        alert("Raspberry Pi is restarting...");
-      } else {
+    if(confirm("Are you sure you want to restart the Raspberry Pi?")){
+      try {
+        const response = await fetch(`${BACKEND_URL}/restart`, { method: "POST" });
+        if (response.ok) {
+          alert("Raspberry Pi is restarting...");
+        } else {
+          alert("Failed to restart Raspberry Pi");
+        }
+      } catch (error) {
+        console.error("Failed to restart Pi:", error);
         alert("Failed to restart Raspberry Pi");
       }
-    } catch (error) {
-      console.error("Failed to restart Pi:", error);
-      alert("Failed to restart Raspberry Pi");
     }
   }
 

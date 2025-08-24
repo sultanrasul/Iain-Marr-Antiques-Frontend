@@ -247,12 +247,3 @@
     {/if}
 </div>
 
-<style>
-    .products-container {
-        min-height: 60vh;
-    }
-    
-    .products-grid {
-        min-height: 50vh;
-    }
-</style>
