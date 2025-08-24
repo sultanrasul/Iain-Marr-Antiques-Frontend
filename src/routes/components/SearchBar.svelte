@@ -70,7 +70,7 @@
   }
 
 </script>
-<div class="bg-white rounded-xl shadow-lg p-4 mb-2">
+<div class="bg-white rounded-xl shadow-lg p-4 mb-2" id="searchBar">
   <!-- Search Bar -->
   <div class="relative mb-4">
     <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
