@@ -1,3 +1,10 @@
+@font-face {
+  font-family: 'AcademyEngraved';
+  src: url('/fonts/AcademyEngravedLetPlain.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

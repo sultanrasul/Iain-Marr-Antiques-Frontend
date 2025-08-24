@@ -220,8 +220,8 @@
 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-8">
     <div class="max-w-7xl mx-auto">
         <!-- Header -->
-        <div class="mb-8 text-center">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Iain Marr Antiques</h1>
+        <div class="mb-8 text-center pt-8 text-[#011993]">
+            <h1 class="text-6xl font-engraved ">Iain Marr Antiques</h1>
             <p class="text-gray-600 mt-2">Inventory Management System</p>
         </div>
 
