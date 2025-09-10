@@ -13,6 +13,8 @@
   let editedProduct = null;
   let customerName = ""; // New variable for customer name
   let markAsSold = true; // New variable for marking as sold
+  let paymentType;
+  let duplicateCount = 1;
 
   // Print selected products
   async function printLabels() {
@@ -27,7 +29,9 @@
         body: JSON.stringify({
           selectedProducts: selectedProducts,
           customerName: customerName,
-          logSold: markAsSold
+          logSold: markAsSold,
+          paymentType: paymentType,
+          duplicateCount: duplicateCount,
         })
       });
       
@@ -91,7 +95,7 @@
         Print Receipts
       </h2>
       <button
-        on:click={() => { showPrintModal = false; customerName = ''; markAsSold = false; }}
+        on:click={() => { showPrintModal = false; customerName = ''; markAsSold = false; paymentType = ''; duplicateCount = 1; }}
         class="text-gray-400 hover:text-gray-600"
       >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -119,28 +123,124 @@
         </p>
       </div>
       
-      <!-- Mark as Sold Checkbox -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200 cursor-pointer" on:click={() => {markAsSold=!markAsSold}}>
-        <div class="flex items-center">
-          <input
-            id="markAsSold"
-            type="checkbox"
-            bind:checked={markAsSold}
-            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <div  class="ml-2 block text-sm font-medium text-gray-700">
-            Mark as Sold and Add to Sold Inventory
+      <!-- Payment Type Selection -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Payment Type <span class="text-red-500">*</span>
+        </label>
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Cash Option -->
+          <label class={`border-green-500 flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${paymentType === 'CASH' ? 'bg-green-50': 'bg-gray-50'} `}>
+            <input
+              type="radio"
+              name="paymentType"
+              value="CASH"
+              bind:group={paymentType}
+              class="h-4 w-4 text-blue-600 focus:ring-blue-500"
+              required
+            />
+            <div class="ml-3 flex items-center">
+              <svg class="w-6 h-6 text-gray-700 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+              <span class="block text-sm font-medium text-gray-700">Cash</span>
+            </div>
+          </label>
+          
+          <!-- Card Option -->
+          <label class={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all border-blue-500 ${paymentType === 'CARD' ? 'bg-blue-50' : 'bg-gray-50'}`}>
+            <input
+              type="radio"
+              name="paymentType"
+              value="CARD"
+              bind:group={paymentType}
+              class="h-4 w-4 text-blue-600 focus:ring-blue-500"
+              required
+            />
+            <div class="ml-3 flex items-center">
+              <svg class="w-6 h-6 text-gray-700 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+              </svg>
+              <span class="block text-sm font-medium text-gray-700">Card</span>
+            </div>
+          </label>
+        </div>
+        {#if !paymentType}
+          <p class="mt-2 text-sm text-red-600">Please select a payment method</p>
+        {/if}
+      </div>
+      
+      <!-- Compact Duplicate Receipt Input - Redesigned to match Mark as Sold -->
+      <div class="mb-6 flex items-stretch gap-4">
+        <!-- Mark as Sold Checkbox (unchanged) -->
+        <div class="flex-1">
+          <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 cursor-pointer h-full" on:click={() => {markAsSold=!markAsSold}}>
+            <div class="flex items-center">
+              <input
+                id="markAsSold"
+                type="checkbox"
+                bind:checked={markAsSold}
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <div class="ml-2 block text-sm font-medium text-gray-700">
+                Mark as Sold
+              </div>
+            </div>
+            <p class="mt-1 text-sm text-blue-600">
+              {#if markAsSold}
+                Items will be marked as sold
+              {:else}
+                Items remain available
+              {/if}
+            </p>
           </div>
         </div>
-        <p class="mt-1 text-sm text-blue-600">
-          {#if markAsSold}
-            Items will be marked as sold in your inventory and added to the sold items sheet.
-          {:else}
-            Items will remain available in your inventory after printing.
-          {/if}
-        </p>
+        
+        <!-- Compact Duplicate Receipt Input -->
+        <div class="flex-1">
+          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 h-full">
+          <label for="duplicateCount" class="flex items-center justify-between text-xs font-medium text-gray-700 mb-2">
+                <span>Number of Copies</span>
+                <span class="text-gray-400 font-normal">Max 10 copies</span>
+              </label>
+            <div class="flex items-center justify-between">
+              <button 
+                type="button" 
+                class="bg-white hover:bg-gray-100 border border-gray-300 rounded-lg p-1.5 h-8 w-8 flex items-center justify-center focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                on:click={() => duplicateCount > 1 ? duplicateCount-- : null}
+                disabled={duplicateCount <= 1}
+                class:opacity-50={duplicateCount <= 1}
+                class:cursor-not-allowed={duplicateCount <= 1}
+              >
+                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                </svg>
+              </button>
+              
+              <div class="mx-3 flex-1 text-center">
+                <span class="text-xl font-bold text-gray-800">{duplicateCount}</span>
+                <p class="text-xs text-gray-500 mt-0.5">{duplicateCount > 1 ? "Copies": "Copy"}</p>
+              </div>
+              
+              <button 
+                type="button" 
+                class="bg-white hover:bg-gray-100 border border-gray-300 rounded-lg p-1.5 h-8 w-8 flex items-center justify-center focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                on:click={() => duplicateCount < 10 ? duplicateCount++ : null}
+                disabled={duplicateCount >= 10}
+                class:opacity-50={duplicateCount >= 10}
+                class:cursor-not-allowed={duplicateCount >= 10}
+              >
+                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+              </button>
+            </div>
+            <!-- <p class="mt-2 text-xs text-gray-500 text-center">
+              Max 10 copies
+            </p> -->
+          </div>
+        </div>
+        
       </div>
       
       <div>
@@ -151,7 +251,7 @@
           {/if}
         </div>
         
-        <div class="space-y-3 max-h-96 overflow-y-auto">
+        <div class="space-y-3 ">
           {#each selectedProducts as product}
             <div class={`flex items-center p-3 border rounded-lg hover:bg-gray-50
                 ${product.sold ? 'bg-red-50 border-red-200' : ''}`}>
@@ -216,7 +316,7 @@
     <!-- Modal Footer -->
     <div class="p-6 border-t flex justify-end space-x-3">
       <button 
-        on:click={() => { showPrintModal = false; customerName = ''; markAsSold = false; }}
+        on:click={() => { showPrintModal = false; customerName = ''; markAsSold = false; paymentType = ''; duplicateCount = 1; }}
         class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
       >
         Back
@@ -228,7 +328,7 @@
         class:bg-blue-600={!isLoading}
         class:bg-gray-400={isLoading}
         class:hover:bg-blue-700={!isLoading}
-        disabled={isLoading || selectedProducts.length === 0}
+        disabled={isLoading || selectedProducts.length === 0 || !paymentType}
       >
         {#if isLoading}
           <!-- Spinner -->
@@ -239,13 +339,18 @@
           <span class="text-white">Printing...</span>
         {:else}
           <span class="text-white">
-            {markAsSold ? 'Print & Mark Sold' : 'Print Receipts'}
+            {markAsSold ? 'Print & Mark Sold' : 'Print Receipts'} ({duplicateCount})
           </span>
         {/if}
       </button>
     </div>
   </div>
 </div>
+
+
+
+
+
 
 {#if showEditPrintModal}
   <EditPrintModal bind:showEditPrintModal={showEditPrintModal} bind:editedProduct={editedProduct} bind:selectedProducts={selectedProducts}/>
