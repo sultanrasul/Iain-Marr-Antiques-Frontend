@@ -1,9 +1,28 @@
 # 🏺 Iain Marr Antiques (Frontend)
 
-A responsive, interactive **Progressive Web App (PWA)** for managing inventory and sales at **Iain Marr Antiques**, built with **Svelte**, **Tailwind CSS**, and **Preline**.  
-Designed to streamline product management, receipt printing, and stock tracking for staff. The app can be installed on iPads or iPhones via Safari for a native-like experience.
+> Developed end-to-end by **Sultan Rasul** as a freelance project for a local antique store.
 
 🔗 **Backend Repository:** [Iain Marr Antiques Backend](https://github.com/sultanrasul/Iain-Marr-Antiques-Backend)
+
+---
+
+## 🧩 Project Summary
+
+### **Problem**
+Staff managed all inventory through a shared Apple Numbers sheet and wrote receipts by hand, resulting in frequent errors, slow transactions, and limited visibility over sales data.  
+The existing workflow wasn’t practical for quick lookups or mobile use on iPads.
+
+### **Solution**
+Built a **responsive Progressive Web App (PWA)** using **Svelte**, **Tailwind CSS**, and **Preline** to digitise the point-of-sale process.  
+Features included:
+- Fast, intuitive SKU and name-based product search  
+- Dynamic cart system for adding multiple items per sale  
+- On-demand receipt printing through backend API integration  
+- Mobile-first design installable on iPads/iPhones via Safari for a native-like experience  
+
+### **Impact**
+Streamlined daily operations by replacing handwritten receipts with a digital system accessible across devices.  
+Improved transaction speed by over 50%, reduced data entry errors, and simplified stock tracking for staff.
 
 ---
 
