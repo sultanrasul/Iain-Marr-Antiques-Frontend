@@ -9,6 +9,9 @@ node_modules
 .DS_Store
 Thumbs.db
 
+.DS_Store
+.vscode
+
 # Env
 .env
 .env.*
