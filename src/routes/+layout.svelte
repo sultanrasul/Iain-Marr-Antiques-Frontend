@@ -13,9 +13,6 @@
 	import { ModeWatcher, setMode } from 'mode-watcher';
 
 	import { initFlowbite } from 'flowbite';
-	import Navbar from './Navbar.svelte';
-	import Drawer from './Drawer.svelte';
-	import Footer from './Footer.svelte';
 	import { page } from '$app/stores';
 
 	let lastPath = '';
@@ -79,7 +76,6 @@
 
 </script>
 
-<Drawer />
 <Toaster position="top-right" richColors={true} />
 <ModeWatcher />
 
