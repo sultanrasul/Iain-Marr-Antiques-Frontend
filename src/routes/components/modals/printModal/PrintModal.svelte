@@ -11,8 +11,11 @@
   let isLoading = false;
   let showEditPrintModal;
   let editedProduct = null;
-  let customerName = ""; // New variable for customer name
-  let markAsSold = true; // New variable for marking as sold
+  let customerName = "";
+  let markAsSold = true;
+  let printReceipt = true;
+  let emailReceipt = false;
+  let emailAddress = "";
   let paymentType;
   let duplicateCount = 1;
 
@@ -20,25 +23,32 @@
   async function printLabels() {
     isLoading = true;
     try {
+      const requestBody = {
+        selectedProducts: selectedProducts,
+        customerName: customerName,
+        logSold: markAsSold,
+        // paymentType: paymentType,
+        duplicateCount: printReceipt ? duplicateCount : 0,
+      };
+
+      // Add email data if email receipt is selected
+      if (emailReceipt && emailAddress) {
+        requestBody.emailReceipt = true;
+        requestBody.emailAddress = emailAddress;
+      }
+
       const response = await fetch(BACKEND_URL+'/print_labels', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          selectedProducts: selectedProducts,
-          customerName: customerName,
-          logSold: markAsSold,
-          paymentType: paymentType,
-          duplicateCount: duplicateCount,
-        })
+        body: JSON.stringify(requestBody)
       });
       
       const result = await response.json();
 
       if (!response.ok) {
-        // Custom error from backend
         if (result.error) {
           throw new Error(result.error);
         } else {
@@ -58,20 +68,27 @@
         selectedProducts = selectedProducts.map(product => ({ ...product, sold: true }));
       }
 
-      toast.success(`Successfully printed ${selectedProducts.length} label(s)!`);
+      let successMessage = `Successfully processed ${selectedProducts.length} item(s)!`;
+      if (printReceipt) successMessage += ` Printed ${duplicateCount} copy(s).`;
+      if (emailReceipt && emailAddress) successMessage += ` Email sent to ${emailAddress}.`;
+      if (markAsSold) successMessage += ` Items marked as sold.`;
+
+      toast.success(successMessage);
       selectedProducts = [];
       customerName = "";
-      markAsSold = false;
+      markAsSold = true;
+      printReceipt = true;
+      emailReceipt = false;
+      emailAddress = "";
       showPrintModal = false;
 
     } catch (err) {
-      console.error("Failed to print labels", err);
-      toast.error(err.message || "Failed to print labels. Please check the console for details.");
+      console.error("Failed to process request", err);
+      toast.error(err.message || "Failed to process request. Please check the console for details.");
     } finally {
       isLoading = false;
     }
   }
-
 
   // Function to remove a product from selected items
   function removeProduct(product) {
@@ -85,6 +102,17 @@
       currency: 'GBP'
     }).format(value);
   };
+
+  // Generate button text based on selected options
+  $: buttonText = (() => {
+    const actions = [];
+    if (printReceipt) actions.push(`Print${duplicateCount > 1 ? ` (${duplicateCount})` : ''}`);
+    if (emailReceipt) actions.push('Email');
+    if (markAsSold) actions.push('Mark Sold');
+    
+    if (actions.length === 0) return 'Confirm';
+    return actions.join(' & ');
+  })();
 </script>
 
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -95,7 +123,16 @@
         Print Receipts
       </h2>
       <button
-        on:click={() => { showPrintModal = false; customerName = ''; markAsSold = false; paymentType = ''; duplicateCount = 1; }}
+        on:click={() => { 
+          showPrintModal = false; 
+          customerName = ''; 
+          markAsSold = true; 
+          printReceipt = true;
+          emailReceipt = false;
+          emailAddress = '';
+          paymentType = ''; 
+          duplicateCount = 1; 
+        }}
         class="text-gray-400 hover:text-gray-600"
       >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -124,12 +161,12 @@
       </div>
       
       <!-- Payment Type Selection -->
-      <div class="mb-6">
+      <!-- <div class="mb-6">
         <label class="block text-sm font-medium text-gray-700 mb-2">
           Payment Type <span class="text-red-500">*</span>
         </label>
         <div class="grid grid-cols-2 gap-4">
-          <!-- Cash Option -->
+
           <label class={`border-green-500 flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${paymentType === 'CASH' ? 'bg-green-50': 'bg-gray-50'} `}>
             <input
               type="radio"
@@ -147,7 +184,7 @@
             </div>
           </label>
           
-          <!-- Card Option -->
+
           <label class={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all border-blue-500 ${paymentType === 'CARD' ? 'bg-blue-50' : 'bg-gray-50'}`}>
             <input
               type="radio"
@@ -168,25 +205,62 @@
         {#if !paymentType}
           <p class="mt-2 text-sm text-red-600">Please select a payment method</p>
         {/if}
-      </div>
+      </div> -->
       
-      <!-- Compact Duplicate Receipt Input - Redesigned to match Mark as Sold -->
-      <div class="mb-6 flex items-stretch gap-4">
-        <!-- Mark as Sold Checkbox (unchanged) -->
-        <div class="flex-1">
-          <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 cursor-pointer h-full" on:click={() => {markAsSold=!markAsSold}}>
-            <div class="flex items-center">
-              <input
-                id="markAsSold"
-                type="checkbox"
-                bind:checked={markAsSold}
-                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <div class="ml-2 block text-sm font-medium text-gray-700">
-                Mark as Sold
+      <!-- Compact Options Row -->
+      <div class="mb-6">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="grid grid-cols-3 gap-3">
+          <!-- Email Receipt Checkbox -->
+           <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div class="p-3 bg-purple-50 rounded-lg border border-purple-200 cursor-pointer h-full" 
+               on:click={() => {emailReceipt = !emailReceipt}}>
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center">
+                <input
+                  id="emailReceipt"
+                  type="checkbox"
+                  bind:checked={emailReceipt}
+                  class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                />
+                <label for="emailReceipt" class="ml-2 block text-sm font-medium text-gray-700">
+                  Email Receipt
+                </label>
               </div>
+              <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+              </svg>
             </div>
-            <p class="mt-1 text-sm text-blue-600">
+            <p class="text-xs text-purple-600">
+              {#if emailReceipt}
+                Email receipt will be sent
+              {:else}
+                No email receipt
+              {/if}
+            </p>
+          </div>
+          
+          <!-- Mark as Sold Checkbox -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div class="p-3 bg-blue-50 rounded-lg border border-blue-200 cursor-pointer h-full" 
+               on:click={() => {markAsSold = !markAsSold}}>
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center">
+                <input
+                  id="markAsSold"
+                  type="checkbox"
+                  bind:checked={markAsSold}
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label for="markAsSold" class="ml-2 block text-sm font-medium text-gray-700">
+                  Mark as Sold
+                </label>
+              </div>
+              <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <p class="text-xs text-blue-600">
               {#if markAsSold}
                 Items will be marked as sold
               {:else}
@@ -194,58 +268,76 @@
               {/if}
             </p>
           </div>
-        </div>
-        
-        <!-- Compact Duplicate Receipt Input -->
-        <div class="flex-1">
-          <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 h-full">
-          <label for="duplicateCount" class="flex items-center justify-between text-xs font-medium text-gray-700 mb-2">
-                <span>Number of Copies</span>
-                <span class="text-gray-400 font-normal">Max 10 copies</span>
-              </label>
-            <div class="flex items-center justify-between">
-              <button 
-                type="button" 
-                class="bg-white hover:bg-gray-100 border border-gray-300 rounded-lg p-1.5 h-8 w-8 flex items-center justify-center focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-                on:click={() => duplicateCount > 1 ? duplicateCount-- : null}
-                disabled={duplicateCount <= 1}
-                class:opacity-50={duplicateCount <= 1}
-                class:cursor-not-allowed={duplicateCount <= 1}
-              >
-                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
-                </svg>
-              </button>
-              
-              <div class="mx-3 flex-1 text-center">
-                <span class="text-xl font-bold text-gray-800">{duplicateCount}</span>
-                <p class="text-xs text-gray-500 mt-0.5">{duplicateCount > 1 ? "Copies": "Copy"}</p>
+          
+          <!-- Print Receipt Checkbox with Counter -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div class="p-3 bg-green-50 rounded-lg border border-green-200 cursor-pointer h-full" on:click={() => {printReceipt = !printReceipt}}>
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center">
+                <input
+                  id="printReceipt"
+                  type="checkbox"
+                  bind:checked={printReceipt}
+                  class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                />
+                <label for="printReceipt" class="ml-2 block text-sm font-medium text-gray-700">
+                  Print Receipt
+                </label>
               </div>
-              
-              <button 
-                type="button" 
-                class="bg-white hover:bg-gray-100 border border-gray-300 rounded-lg p-1.5 h-8 w-8 flex items-center justify-center focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-                on:click={() => duplicateCount < 10 ? duplicateCount++ : null}
-                disabled={duplicateCount >= 10}
-                class:opacity-50={duplicateCount >= 10}
-                class:cursor-not-allowed={duplicateCount >= 10}
-              >
-                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-              </button>
+              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z"></path>
+              </svg>
             </div>
-            <!-- <p class="mt-2 text-xs text-gray-500 text-center">
-              Max 10 copies
-            </p> -->
+            {#if printReceipt}
+              <div class="flex items-center justify-between mt-1">
+                <button 
+                  type="button" 
+                  class="bg-white text-gray-600 hover:bg-gray-100 border border-gray-300 rounded p-1 h-6 w-6 flex items-center justify-center text-lg"
+                  on:click|stopPropagation={() => duplicateCount > 1 ? duplicateCount-- : null}
+                  disabled={duplicateCount <= 1}
+                >
+                  -
+                </button>
+                <span class="text-xs font-medium text-gray-700">{duplicateCount} {duplicateCount === 1 ? 'copy' : 'copies'}</span>
+                <button 
+                  type="button" 
+                  class="bg-white text-gray-600 hover:bg-gray-100 border border-gray-300 rounded p-1 h-6 w-6 flex items-center justify-center text-lg"
+                  on:click|stopPropagation={() => duplicateCount < 10 ? duplicateCount++ : null}
+                  disabled={duplicateCount >= 10}
+                >
+                  +
+                </button>
+              </div>
+            {:else}
+              <p class="text-xs text-green-600">No print copy</p>
+            {/if}
           </div>
         </div>
-        
       </div>
+
+      <!-- Email Input (Conditional) -->
+      {#if emailReceipt}
+        <div class="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+          <label for="emailAddress" class="block text-sm font-medium text-purple-700 mb-2">
+            Email Address <span class="text-red-500">*</span>
+          </label>
+          <input
+            id="emailAddress"
+            type="email"
+            bind:value={emailAddress}
+            placeholder="Enter customer email address"
+            class="w-full px-4 py-2 border text-black border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            required
+          />
+          <p class="mt-1 text-sm text-purple-600">
+            The receipt will be sent to this email address.
+          </p>
+        </div>
+      {/if}
       
       <div>
         <div class="mb-4">
-          <p class="text-gray-600">You're about to print Receipts for {selectedProducts.length} products.</p>
+          <p class="text-gray-600">You're about to process {selectedProducts.length} products.</p>
           {#if selectedProducts.length > 0}
             <p class="text-sm text-gray-500 mt-1">Click the X button to remove items from the list</p>
           {/if}
@@ -271,7 +363,7 @@
               
               <!-- Action buttons container -->
               <div class="flex items-center space-x-2">
-                <!-- Edit button - now more prominent -->
+                <!-- Edit button -->
                 <button 
                   on:click={() => {editedProduct = product; showEditPrintModal = true;}}
                   class="p-2 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors flex items-center group"
@@ -285,7 +377,7 @@
                   </span>
                 </button>
                 
-                <!-- Remove button - now more prominent -->
+                <!-- Remove button -->
                 <button 
                   on:click={() => removeProduct(product)}
                   class="p-2 bg-red-50 rounded-full hover:bg-red-100 transition-colors flex items-center group"
@@ -316,7 +408,16 @@
     <!-- Modal Footer -->
     <div class="p-6 border-t flex justify-end space-x-3">
       <button 
-        on:click={() => { showPrintModal = false; customerName = ''; markAsSold = false; paymentType = ''; duplicateCount = 1; }}
+        on:click={() => { 
+          showPrintModal = false; 
+          customerName = ''; 
+          markAsSold = true; 
+          printReceipt = true;
+          emailReceipt = false;
+          emailAddress = '';
+          paymentType = ''; 
+          duplicateCount = 1; 
+        }}
         class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
       >
         Back
@@ -328,29 +429,25 @@
         class:bg-blue-600={!isLoading}
         class:bg-gray-400={isLoading}
         class:hover:bg-blue-700={!isLoading}
-        disabled={isLoading || selectedProducts.length === 0 || !paymentType}
-      >
+        disabled={isLoading || selectedProducts.length === 0 || (!emailReceipt && !markAsSold && !printReceipt) || (emailReceipt && !emailAddress)}
+        >
+        <!-- disabled={isLoading || selectedProducts.length === 0 || !paymentType || (!emailReceipt && !markAsSold && !printReceipt) || (emailReceipt && !emailAddress)} -->
         {#if isLoading}
           <!-- Spinner -->
           <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span class="text-white">Printing...</span>
+          <span class="text-white">Processing...</span>
         {:else}
           <span class="text-white">
-            {markAsSold ? 'Print & Mark Sold' : 'Print Receipts'} ({duplicateCount})
+            {buttonText}
           </span>
         {/if}
       </button>
     </div>
   </div>
 </div>
-
-
-
-
-
 
 {#if showEditPrintModal}
   <EditPrintModal bind:showEditPrintModal={showEditPrintModal} bind:editedProduct={editedProduct} bind:selectedProducts={selectedProducts}/>
