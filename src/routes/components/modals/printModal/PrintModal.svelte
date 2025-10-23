@@ -16,18 +16,45 @@
   let printReceipt = true;
   let emailReceipt = false;
   let emailAddress = "";
+  let emailError = "";
   let paymentType;
   let duplicateCount = 1;
 
+  // Email validation function
+  function validateEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  // Validate email on input change
+  function handleEmailInput(event) {
+    emailAddress = event.target.value;
+    if (!emailAddress) {
+      emailError = "";
+      return;
+    }
+    
+    if (!validateEmail(emailAddress)) {
+      emailError = "Please enter a valid email address";
+    } else {
+      emailError = "";
+    }
+  }
+
   // Print selected products
   async function printLabels() {
+    // Final email validation before submission
+    if (emailReceipt && emailAddress && !validateEmail(emailAddress)) {
+      emailError = "Please enter a valid email address";
+      return;
+    }
+
     isLoading = true;
     try {
       const requestBody = {
         selectedProducts: selectedProducts,
         customerName: customerName,
         logSold: markAsSold,
-        // paymentType: paymentType,
         duplicateCount: printReceipt ? duplicateCount : 0,
       };
 
@@ -80,6 +107,7 @@
       printReceipt = true;
       emailReceipt = false;
       emailAddress = "";
+      emailError = "";
       showPrintModal = false;
 
     } catch (err) {
@@ -113,6 +141,20 @@
     if (actions.length === 0) return 'Confirm';
     return actions.join(' & ');
   })();
+
+  // Reactive validation for email when emailReceipt is toggled
+  $: if (emailReceipt && emailAddress && !validateEmail(emailAddress)) {
+    emailError = "Please enter a valid email address";
+  } else if (emailReceipt && !emailAddress) {
+    emailError = "Email address is required";
+  } else {
+    emailError = "";
+  }
+
+  // Clear email error when email receipt is disabled
+  $: if (!emailReceipt) {
+    emailError = "";
+  }
 </script>
 
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -130,6 +172,7 @@
           printReceipt = true;
           emailReceipt = false;
           emailAddress = '';
+          emailError = '';
           paymentType = ''; 
           duplicateCount = 1; 
         }}
@@ -160,53 +203,6 @@
         </p>
       </div>
       
-      <!-- Payment Type Selection -->
-      <!-- <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-          Payment Type <span class="text-red-500">*</span>
-        </label>
-        <div class="grid grid-cols-2 gap-4">
-
-          <label class={`border-green-500 flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${paymentType === 'CASH' ? 'bg-green-50': 'bg-gray-50'} `}>
-            <input
-              type="radio"
-              name="paymentType"
-              value="CASH"
-              bind:group={paymentType}
-              class="h-4 w-4 text-blue-600 focus:ring-blue-500"
-              required
-            />
-            <div class="ml-3 flex items-center">
-              <svg class="w-6 h-6 text-gray-700 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-              </svg>
-              <span class="block text-sm font-medium text-gray-700">Cash</span>
-            </div>
-          </label>
-          
-
-          <label class={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all border-blue-500 ${paymentType === 'CARD' ? 'bg-blue-50' : 'bg-gray-50'}`}>
-            <input
-              type="radio"
-              name="paymentType"
-              value="CARD"
-              bind:group={paymentType}
-              class="h-4 w-4 text-blue-600 focus:ring-blue-500"
-              required
-            />
-            <div class="ml-3 flex items-center">
-              <svg class="w-6 h-6 text-gray-700 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
-              </svg>
-              <span class="block text-sm font-medium text-gray-700">Card</span>
-            </div>
-          </label>
-        </div>
-        {#if !paymentType}
-          <p class="mt-2 text-sm text-red-600">Please select a payment method</p>
-        {/if}
-      </div> -->
-      
       <!-- Compact Options Row -->
       <div class="mb-6">
         <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -223,9 +219,9 @@
                   bind:checked={emailReceipt}
                   class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                 />
-                <label for="emailReceipt" class="ml-2 block text-sm font-medium text-gray-700">
+                <p class="ml-2 block text-sm font-medium text-gray-700">
                   Email Receipt
-                </label>
+                </p>
               </div>
               <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -252,9 +248,9 @@
                   bind:checked={markAsSold}
                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label for="markAsSold" class="ml-2 block text-sm font-medium text-gray-700">
+                <p class="ml-2 block text-sm font-medium text-gray-700">
                   Mark as Sold
-                </label>
+                </p>
               </div>
               <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -280,9 +276,9 @@
                   bind:checked={printReceipt}
                   class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                 />
-                <label for="printReceipt" class="ml-2 block text-sm font-medium text-gray-700">
+                <p class="ml-2 block text-sm font-medium text-gray-700">
                   Print Receipt
-                </label>
+                </p>
               </div>
               <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z"></path>
@@ -317,21 +313,31 @@
 
       <!-- Email Input (Conditional) -->
       {#if emailReceipt}
-        <div class="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
-          <label for="emailAddress" class="block text-sm font-medium text-purple-700 mb-2">
+        <div class="mb-6 p-4 bg-purple-50 rounded-lg border {emailError ? 'border-red-300' : 'border-purple-200'}">
+          <p class="block text-sm font-medium text-purple-700 mb-2">
             Email Address <span class="text-red-500">*</span>
-          </label>
+          </p>
           <input
             id="emailAddress"
             type="email"
-            bind:value={emailAddress}
+            value={emailAddress}
+            on:input={handleEmailInput}
             placeholder="Enter customer email address"
-            class="w-full px-4 py-2 border text-black border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            class="w-full px-4 py-2 border text-black {emailError ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-purple-300 focus:ring-purple-500 focus:border-purple-500'} rounded-lg focus:ring-2"
             required
           />
-          <p class="mt-1 text-sm text-purple-600">
-            The receipt will be sent to this email address.
-          </p>
+          {#if emailError}
+            <div class="flex items-center mt-2 text-red-600">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <p class="text-sm font-medium">{emailError}</p>
+            </div>
+          {:else}
+            <p class="mt-1 text-sm text-purple-600">
+              The receipt will be sent to this email address.
+            </p>
+          {/if}
         </div>
       {/if}
       
@@ -415,6 +421,7 @@
           printReceipt = true;
           emailReceipt = false;
           emailAddress = '';
+          emailError = '';
           paymentType = ''; 
           duplicateCount = 1; 
         }}
@@ -429,9 +436,8 @@
         class:bg-blue-600={!isLoading}
         class:bg-gray-400={isLoading}
         class:hover:bg-blue-700={!isLoading}
-        disabled={isLoading || selectedProducts.length === 0 || (!emailReceipt && !markAsSold && !printReceipt) || (emailReceipt && !emailAddress)}
+        disabled={isLoading || selectedProducts.length === 0 || (!emailReceipt && !markAsSold && !printReceipt) || (emailReceipt && (!emailAddress || emailError))}
         >
-        <!-- disabled={isLoading || selectedProducts.length === 0 || !paymentType || (!emailReceipt && !markAsSold && !printReceipt) || (emailReceipt && !emailAddress)} -->
         {#if isLoading}
           <!-- Spinner -->
           <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
