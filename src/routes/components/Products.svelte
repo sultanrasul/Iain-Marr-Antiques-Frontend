@@ -5,7 +5,7 @@
     export let toggleProduct;
     export let openEditModal;
     export let showSoldItems;
-    
+
     // Pagination variables
     let currentPage = 1;
     let itemsPerPage = 24; // Show 24 items per page (good for grid layouts)
@@ -89,11 +89,15 @@
     <div class="products-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {#each paginatedProducts as product}
             <!-- Product Card -->
-            <div 
+            <div
                 class={`bg-white rounded-xl shadow-md overflow-hidden border-2 transition-all duration-200 relative cursor-pointer
                     ${selectedProducts.find(p => p.id === product.id) ? 'border-blue-500 shadow-lg' : 'border-transparent'}`}
                 on:click={() => toggleProduct(product)}
             >
+
+                <div class="absolute bottom-3 right-3 px-2 py-1 bg-gray-100 text-gray-800 text-xs font-semibold rounded-full">
+                    Qty: {product.quantity}
+                </div>
                 {#if product.sold}
                     <div class="absolute top-14 right-3 px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded-full">
                         SOLD

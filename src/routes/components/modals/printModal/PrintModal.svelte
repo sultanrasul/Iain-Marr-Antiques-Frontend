@@ -155,6 +155,7 @@
   $: if (!emailReceipt) {
     emailError = "";
   }
+
 </script>
 
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -351,7 +352,7 @@
         
         <div class="space-y-3 ">
           {#each selectedProducts as product}
-            <div class={`flex items-center p-3 border rounded-lg hover:bg-gray-50
+            <div class={`flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50
                 ${product.sold ? 'bg-red-50 border-red-200' : ''}`}>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center">
@@ -369,6 +370,30 @@
               
               <!-- Action buttons container -->
               <div class="flex items-center space-x-2">
+
+                <!-- Quantity control -->
+                <div class="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+                  <button
+                    class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50"
+                    on:click={() => product.quantity = Math.max(1, product.quantity - 1)}
+                    disabled={product.quantity <= 1}
+                    aria-label="Decrease quantity"
+                  >
+                    −
+                  </button>
+  
+                  <span class="px-4 py-1 text-sm font-medium text-gray-800 min-w-[2rem] text-center">
+                    {product.quantity}
+                  </span>
+  
+                  <button
+                    class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700"
+                    on:click={() => product.quantity += 1}
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
                 <!-- Edit button -->
                 <button 
                   on:click={() => {editedProduct = product; showEditPrintModal = true;}}
@@ -397,6 +422,15 @@
                   </span>
                 </button>
               </div>
+              <div class="flex items-center space-x-2">
+
+
+
+
+              <!-- Edit -->
+              <!-- Remove -->
+            </div>
+
             </div>
           {:else}
             <div class="text-center py-8">

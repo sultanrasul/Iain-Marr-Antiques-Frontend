@@ -5,8 +5,7 @@
 <script>
     import { updated } from '$app/state';
     import { Printer } from 'lucide-svelte';
-    import AddProductModal from './components/modals/AddProductModal.svelte';
-    import EditProductModal from './components/modals/editProductModal/EditProductModal.svelte';
+    import EditProductModal from './components/modals/ProductModal.svelte';
     import PrintModal from './components/modals/printModal/PrintModal.svelte';
     import Products from './components/Products.svelte';
     import SearchBar from './components/SearchBar.svelte';
@@ -87,6 +86,7 @@
             products = responceProducts.map((/** @type {any} */ item) => ({
                 id: getValue(item, "SKU NO.", ''),
                 name: getValue(item, "ITEM DESCRIPTION", ''),
+                quantity: Number(getValue(item, "Quantity", 0)),
                 price: Number(getValue(item, "SELLING PRICE", 0)),
                 imSKU: getValue(item, "IM SKU", ''),
                 sku: getValue(item, "SKU NO.", ''),
@@ -170,12 +170,19 @@
    * @param {{ id: any; }} product
    */
     function toggleProduct(product) {
-        if (selectedProducts.find(p => p.id === product.id)) {
-            selectedProducts = selectedProducts.filter(p => p.id !== product.id);
-        } else {
-            selectedProducts = [...selectedProducts, {...product}];
+    if (selectedProducts.find(p => p.id === product.id)) {
+        selectedProducts = selectedProducts.filter(p => p.id !== product.id);
+    } else {
+        selectedProducts = [
+        ...selectedProducts,
+        {
+            ...product,
+            quantity: 1
         }
+        ];
     }
+}
+
 
     // Toggle all products
     function toggleAll() {
@@ -319,18 +326,20 @@
     <!-- Print/Edit Modal -->
     {#if showEditProductModal}
         <EditProductModal
-            bind:editedProduct={editedProduct}
-            bind:showEditProductModal={showEditProductModal}
-            bind:activeTab={editActiveTab}
-            bind:products={products}
+            bind:show={showEditProductModal}
+            bind:product={editedProduct}
         />
     {/if}
 
     <!-- Add Product Modal -->
     {#if showAddProductModal}
-        <AddProductModal
+        <!-- <AddProductModal
             bind:showAddProductModal={showAddProductModal}
             bind:products={products}
+        /> -->
+        <EditProductModal
+            bind:show={showAddProductModal}
+            product={null}
         />
     {/if}
             
