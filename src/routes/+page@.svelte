@@ -2,226 +2,186 @@
     <title>Iain Marr Antiques</title>
 </svelte:head>
 
-<script>
-    import { updated } from '$app/state';
+<script lang="ts">
+    import { onMount } from 'svelte';
     import { Printer } from 'lucide-svelte';
-    import EditProductModal from './components/modals/ProductModal.svelte';
-    import PrintModal from './components/modals/printModal/PrintModal.svelte';
+
     import Products from './components/Products.svelte';
     import SearchBar from './components/SearchBar.svelte';
+    import ProductModal from './components/modals/ProductModal.svelte';
+    import PrintModal from './components/modals/printModal/PrintModal.svelte';
+
     import { BACKEND_URL } from './conf';
-    import { onMount } from 'svelte';
-    
-    /**
-   * @type {any[]}
-   */
-    let products = [];
-    /**
-   * @type {any[]}
-   */
-    let selectedProducts = [];
-    let searchTerm = "";
+    import type { Product } from '@/models/product';
+
+    let products: Product[] = [];
+    let selectedProducts: Product[] = [];
+    let searchTerm = '';
 
     // Edit modal state
     let showEditProductModal = false;
     let showAddProductModal = false;
-    /**
-   * @type {{ id: any; } | null}
-   */
-    let editedProduct = null;
-    let editActiveTab = 'products';
+    let editedProduct: Product | null = null;
+    let editActiveTab: 'products' | 'print' = 'products';
 
     // Print modal state
     let showPrintModal = false;
-
-    // Edit Recipt Details - Not Spreadsheet ones
     let showEditPrintModal = false;
 
     let isLoading = false;
-    /**
-   * @type {string | null}
-   */
-    let error = null;
+    let error: string | null = null;
+
     let showSoldItems = true;
-    let sortConfig = { key: 'sku', direction: 'asc' };
-    
-    // Add new sort options
-    let sortOptions = [
-        { id: 'sku', name: 'SKU' },
-        { id: 'name', name: 'Name' },
-        { id: 'price', name: 'Price' },
-    ];
 
-    let printerConnected;
-
-    // Helper function to handle empty values
-    const getValue = (/** @type {{ [x: string]: any; }} */ item, /** @type {string} */ key, defaultValue = '') => {
-        return item[key] !== undefined && item[key] !== '' ? item[key] : defaultValue;
+    let sortConfig: {
+        key: keyof Product;
+        direction: 'asc' | 'desc';
+    } = {
+        key: 'sku_no',
+        direction: 'asc'
     };
 
-    // Fetch data from your endpoint
-    async function fetchProducts() {
+    let sortOptions: { id: keyof Product; name: string }[] = [
+        { id: 'row_number', name: 'SKU' },
+        { id: 'item_description', name: 'Name' },
+        { id: 'selling_price', name: 'Price' },
+    ];
+
+    let printerConnected = false;
+
+    // ---------- helpers ----------
+
+    function getValue<T>(
+        item: Record<string, unknown>,
+        key: string,
+        defaultValue: T
+    ): T {
+        const value = item[key];
+        return value !== undefined && value !== '' ? (value as T) : defaultValue;
+    }
+
+    // ---------- data ----------
+
+    async function fetchProducts(): Promise<void> {
         try {
             isLoading = true;
             error = null;
-            const response = await fetch(BACKEND_URL+'/get_stock', {
-                method: 'POST',
+
+            const response = await fetch(`${BACKEND_URL}/stock/get-stock`, {
+                method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({})
+                    Accept: 'application/json'
+                }
             });
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
-            const data = await response.json();
 
-            const responceProducts = data["data"];
-            printerConnected = data["printer_connected"];
-            
-            // Process data to match our UI needs
-            products = responceProducts.map((/** @type {any} */ item) => ({
-                id: getValue(item, "SKU NO.", ''),
-                name: getValue(item, "ITEM DESCRIPTION", ''),
-                quantity: Number(getValue(item, "Quantity", 0)),
-                price: Number(getValue(item, "SELLING PRICE", 0)),
-                imSKU: getValue(item, "IM SKU", ''),
-                sku: getValue(item, "SKU NO.", ''),
-                purchasePrice: Number(getValue(item, "PURCHASE PRICE", 0)),
-                seller: getValue(item, "NAME/ADDRESS SELLER", ''),
-                dateBought: getValue(item, "DATE BOUGHT", ''),
-                sold: getValue(item, "SOLD", "FALSE") === "TRUE",
-                commission: getValue(item, "Commission £", 0),
-                dateSold: getValue(item, "DATE SOLD", ''),
-                invoiceNo: getValue(item, "INVOICE NO. XERO", ''),
-                onWebsite: getValue(item, "ON WEBSITE", "FALSE") === "TRUE",
-                location: getValue(item, "location", '')
-            }));
+            const data: {
+                data: Product[];
+                printer_connected: boolean;
+            } = await response.json();
+
+            printerConnected = data.printer_connected;
+            products = data.data;
+
         } catch (err) {
-            console.error("Failed to fetch products:", err);
-            error = "Failed to load products. Please try again later.";
+            console.error(err);
+            error = 'Failed to load products. Please try again later.';
         } finally {
             isLoading = false;
         }
     }
 
-
     onMount(fetchProducts);
 
-    // Handle sorting
-    /**
-   * @param {string} key
-   */
-    function handleSort(key) {
-        let direction = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
+    // ---------- sorting ----------
+
+    function handleSort(key: keyof Product): void {
+        const direction =
+            sortConfig.key === key && sortConfig.direction === 'asc'
+                ? 'desc'
+                : 'asc';
+
         sortConfig = { key, direction };
     }
 
-    // Sort products based on sortConfig
     $: sortedProducts = [...products].sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-        
-        // Special handling for SKU sorting - simply reverse the array
-        if (sortConfig.key === 'sku') {
-            return sortConfig.direction === 'asc' ? 0 : -1;
-        }
-        
-        // Handle numbers
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+
         if (typeof aValue === 'number' && typeof bValue === 'number') {
-            return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+            return sortConfig.direction === 'asc'
+                ? aValue - bValue
+                : bValue - aValue;
         }
-        
-        // Handle strings
+
         if (typeof aValue === 'string' && typeof bValue === 'string') {
-            aValue = aValue.toLowerCase();
-            bValue = bValue.toLowerCase();
-            if (aValue < bValue) {
-                return sortConfig.direction === 'asc' ? -1 : 1;
-            }
-            if (aValue > bValue) {
-                return sortConfig.direction === 'asc' ? 1 : -1;
-            }
+            return sortConfig.direction === 'asc'
+                ? aValue.localeCompare(bValue)
+                : bValue.localeCompare(aValue);
         }
-        
+
         return 0;
     });
 
-    // Filter products based on search term and sold status
-    $: filteredProducts = sortedProducts.filter(p => 
+    // ---------- filtering ----------
+
+    $: filteredProducts = sortedProducts.filter((p) =>
         (showSoldItems || !p.sold) &&
         (
-            String(p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-            String(p.imSKU || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            String(p.sku || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            String(p.seller || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            String(p.location || '').toLowerCase().includes(searchTerm.toLowerCase())
+            p.item_description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.im_sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.sku_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.seller_name_address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.location.toLowerCase().includes(searchTerm.toLowerCase())
         )
     );
 
-    // Toggle product selection
-    /**
-   * @param {{ id: any; }} product
-   */
-    function toggleProduct(product) {
-    if (selectedProducts.find(p => p.id === product.id)) {
-        selectedProducts = selectedProducts.filter(p => p.id !== product.id);
-    } else {
-        selectedProducts = [
-        ...selectedProducts,
-        {
-            ...product,
-            quantity: 1
-        }
-        ];
-    }
-}
+    // ---------- selection ----------
 
-
-    // Toggle all products
-    function toggleAll() {
-        if (selectedProducts.length === filteredProducts.length) {
-            selectedProducts = [];
+    function toggleProduct(product: Product): void {
+        if (selectedProducts.some((p) => p.sku_no === product.sku_no)) {
+            selectedProducts = selectedProducts.filter(
+                (p) => p.sku_no !== product.sku_no
+            );
         } else {
-            selectedProducts = [...filteredProducts];
+            selectedProducts = [...selectedProducts, { ...product }];
         }
     }
 
-    /**
-   * @param {any} product
-   */
-    function openEditModal(product) {
-        editedProduct = {...product};
+    function toggleAll(): void {
+        selectedProducts =
+            selectedProducts.length === filteredProducts.length
+                ? []
+                : [...filteredProducts];
+    }
+
+    function openEditModal(product: Product): void {
+        editedProduct = { ...product };
         editActiveTab = 'products';
         showEditProductModal = true;
     }
-    function openPrintModal() {
+
+    function openPrintModal(): void {
         showPrintModal = true;
     }
 
-    /**
-   * @param {any} editedProduct
-   */
-
-    
-    // Toggle sold item visibility
-    function toggleSoldItems() {
+    function toggleSoldItems(): void {
         showSoldItems = !showSoldItems;
     }
-    
-    // Format currency
-    const formatCurrency = (/** @type {string | number | bigint} */ value) => {
+
+    // ---------- utils ----------
+
+    function formatCurrency(value: number): string {
         return new Intl.NumberFormat('en-GB', {
             style: 'currency',
             currency: 'GBP'
         }).format(value);
-    };
+    }
+
 </script>
 
 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-8">
@@ -262,7 +222,7 @@
         {:else}
 
             <!-- Controls -->
-            <SearchBar bind:printerConnected={printerConnected} bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} openPrintModal={openPrintModal} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm}  bind:showSoldItems={showSoldItems} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
+            <SearchBar bind:printerConnected={printerConnected} bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
 
             <!-- Stats Summary -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -325,21 +285,20 @@
     
     <!-- Print/Edit Modal -->
     {#if showEditProductModal}
-        <EditProductModal
+        <ProductModal
             bind:show={showEditProductModal}
             bind:product={editedProduct}
-        />
+            fetchProducts={fetchProducts}
+            />
     {/if}
-
+            
     <!-- Add Product Modal -->
     {#if showAddProductModal}
-        <!-- <AddProductModal
-            bind:showAddProductModal={showAddProductModal}
-            bind:products={products}
-        /> -->
-        <EditProductModal
+        <ProductModal
             bind:show={showAddProductModal}
+            bind:products={products}
             product={null}
+            fetchProducts={fetchProducts}
         />
     {/if}
             

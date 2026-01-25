@@ -1,50 +1,70 @@
-<script>
-  // @ts-nocheck
+<script lang="ts">
   import { BACKEND_URL } from "../../conf";
   import { toast } from "svelte-sonner";
   import { onMount } from "svelte";
+  import type { Product } from "@/models/product";
 
   export let show = false;
-  export let products = [];
-  export let product = null; // ← if provided = edit, otherwise add
+  export let products: Product[] = [];
+  export let fetchProducts: () => Promise<void>;
+  export let product: Product | null = null; // ← if provided = edit, otherwise add
   console.log("Selected Product: ",product)
 
   let isSaving = false;
-  let originalProduct = null;
+   let originalProduct: Product | null = null; // ← if provided = edit, otherwise add
   let activeTab = "products";
 
   const isEditMode = !!product;
 
-  function incrementSKU(sku) {
-    const match = sku?.match(/^([A-Za-z\s]*)(\d+)([A-Za-z]*)$/);
-    if (!match) return sku;
-    const [, prefix, num, suffix] = match;
-    return `${prefix}${parseInt(num, 10) + 1}${suffix}`;
-  }
+    function incrementSKU(sku: string): string {
+        // Match: numeric part before dash, numeric part after dash
+        const match = sku.match(/^(\d+)-(\d+)$/);
+        if (!match) return sku;
 
-  function createNewProduct() {
-    const lastSku = products?.[products.length - 1]?.sku ?? "SKU 0";
+        let [_, major, minor] = match;
+
+        let minorNum = parseInt(minor, 10);
+
+        // If minor is 999, roll over
+        if (minorNum === 999) {
+            let majorNum = parseInt(major, 10) + 1;
+            // Minor resets to 0
+            return `${majorNum}-00`;
+        }
+
+        minorNum += 1;
+
+        // Preserve leading zeros for minor
+        const minorLength = minor.length;
+        return `${major}-${minorNum.toString().padStart(minorLength, '0')}`;
+    }
+
+
+
+  function createNewProduct() : Product {
+    const lastSku = products?.[products.length - 1]?.sku_no ?? "0";
+    // const lastSku = "2-999";
 
     return {
-      id: incrementSKU(lastSku),
-      sku: incrementSKU(lastSku),
-      imSKU: "",
-      name: "",
-      price: 0,
-      purchasePrice: 0,
-      seller: "",
-      dateBought: "",
+      sku_no: incrementSKU(lastSku),
+      im_sku: "",
+      item_description: "",
+      selling_price: 0,
+      purchase_price: 0,
+      seller_name_address: "",
+      date_bought: "",
       sold: false,
       commission: 0,
-      dateSold: "",
-      invoiceNo: "",
-      onWebsite: false,
+      date_sold: "",
+      invoice_no_xero: "",
+      on_website: false,
       location: "",
-      quantity: 1
+      quantity: 1,
+      photograph: ""
     };
   }
 
-  let editedProduct = isEditMode
+  let editedProduct: Product = isEditMode
     ? JSON.parse(JSON.stringify(product))
     : createNewProduct();
 
@@ -54,7 +74,7 @@
     }
   });
 
-  function isEmptyOrZero(value) {
+  function isEmptyOrZero(value: string | number | null) {
     return value === "" || value === 0 || value == null;
   }
 
@@ -66,40 +86,32 @@
     isSaving = true;
 
     try {
-      const url = isEditMode
-        ? "/modify_product"
-        : "/add_product";
+        const url = isEditMode
+        ? "/stock/modify-product"
+        : "/stock/add-product"
 
-      const body = isEditMode
-        ? { editedProduct: editedProduct }
-        : { product: editedProduct };
 
-      const res = await fetch(BACKEND_URL + url, {
+        const res = await fetch(BACKEND_URL + url, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
+            "Content-Type": "application/json",
+            Accept: "application/json"
         },
-        body: JSON.stringify(body)
-      });
+        body: JSON.stringify(editedProduct)
+        });
 
-      if (!res.ok) throw new Error("Request failed");
+        if (!res.ok) throw new Error("Request failed");
+        
+        toast.success(isEditMode ? "Product updated successfully!" : "Product added successfully!");
 
-      if (isEditMode) {
-        products = products.map(p =>
-          p.id === editedProduct.id ? editedProduct : p
-        );
-        toast.success("Product updated successfully!");
-      } else {
-        toast.success("Product added successfully!");
-      }
 
-      show = false;
+        show = false;
+        fetchProducts();
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to save product");
+        console.error(err);
+        toast.error("Failed to save product");
     } finally {
-      isSaving = false;
+        isSaving = false;
     }
   }
 </script>
@@ -135,15 +147,15 @@
                         <div>
                             <div class="flex items-center mb-1">
                                 <label class="block text-sm font-medium text-gray-700">SKU</label>
-                                {#if isEmptyOrZero(editedProduct.sku)}
+                                {#if isEmptyOrZero(editedProduct.sku_no)}
                                     <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
                                 {/if}
                             </div>
                             <input 
                                 type="text" 
                                 class={`text-black/50 w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                    ${isEmptyOrZero(editedProduct.sku) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300 bg-gray-100'}`}
-                                bind:value={editedProduct.sku}
+                                    ${isEmptyOrZero(editedProduct.sku_no) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300 bg-gray-100'}`}
+                                bind:value={editedProduct.sku_no}
                                 disabled={isEditMode}
                             />
                         </div>
@@ -151,15 +163,15 @@
                         <div>
                             <div class="flex items-center mb-1">
                                 <label class="block text-sm font-medium text-gray-700">IM SKU</label>
-                                {#if isEmptyOrZero(editedProduct.imSKU)}
+                                {#if isEmptyOrZero(editedProduct.im_sku)}
                                     <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
                                 {/if}
                             </div>
                             <input 
                                 type="text" 
                                 class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                    ${isEmptyOrZero(editedProduct.imSKU) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
-                                bind:value={editedProduct.imSKU}
+                                    ${isEmptyOrZero(editedProduct.im_sku) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                bind:value={editedProduct.im_sku}
                                 disabled={isSaving}
                             />
                         </div>
@@ -171,7 +183,7 @@
                                 <label class="block text-sm font-medium text-gray-700">
                                     Product Name
                                 </label>
-                                {#if isEmptyOrZero(editedProduct.name)}
+                                {#if isEmptyOrZero(editedProduct.item_description)}
                                     <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
                                         Empty
                                     </span>
@@ -180,8 +192,8 @@
                             <input 
                                 type="text"
                                 class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                    ${isEmptyOrZero(editedProduct.name) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
-                                bind:value={editedProduct.name}
+                                    ${isEmptyOrZero(editedProduct.item_description) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                bind:value={editedProduct.item_description}
                             />
                         </div>
 
@@ -208,7 +220,7 @@
                         <div>
                             <div class="flex items-center mb-1">
                                 <label class="text-black block text-sm font-medium text-gray-700">Selling Price (£)</label>
-                                {#if editedProduct.price === 0}
+                                {#if editedProduct.selling_price === 0}
                                     <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Zero</span>
                                 {/if}
                             </div>
@@ -216,15 +228,15 @@
                                 type="number" 
                                 step="0.01"
                                 class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                    ${editedProduct.price === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
-                                bind:value={editedProduct.price}
+                                    ${editedProduct.selling_price === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                bind:value={editedProduct.selling_price}
                                 disabled={isSaving}
                             />
                         </div>
                         <div>
                             <div class="flex items-center mb-1">
                                 <label class="block text-sm font-medium text-gray-700">Purchase Price (£)</label>
-                                {#if editedProduct.purchasePrice === 0}
+                                {#if editedProduct.purchase_price === 0}
                                     <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Zero</span>
                                 {/if}
                             </div>
@@ -232,8 +244,8 @@
                                 type="number" 
                                 step="0.01"
                                 class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                    ${editedProduct.purchasePrice === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
-                                bind:value={editedProduct.purchasePrice}
+                                    ${editedProduct.purchase_price === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                bind:value={editedProduct.purchase_price}
                                 disabled={isSaving}
                             />
                         </div>
@@ -244,15 +256,15 @@
                         <div>
                             <div class="flex items-center mb-1">
                                 <label class="block text-sm font-medium text-gray-700">Seller</label>
-                                {#if isEmptyOrZero(editedProduct.seller)}
+                                {#if isEmptyOrZero(editedProduct.seller_name_address)}
                                     <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
                                 {/if}
                             </div>
                             <input 
                                 type="text" 
                                 class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                    ${isEmptyOrZero(editedProduct.seller) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
-                                bind:value={editedProduct.seller}
+                                    ${isEmptyOrZero(editedProduct.seller_name_address) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                bind:value={editedProduct.seller_name_address}
                                 disabled={isSaving}
                             />
                         </div>
@@ -278,30 +290,30 @@
                         <div>
                             <div class="flex items-center mb-1">
                                 <label class="block text-sm font-medium text-gray-700">Date Bought</label>
-                                {#if isEmptyOrZero(editedProduct.dateBought)}
+                                {#if isEmptyOrZero(editedProduct.date_bought)}
                                     <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
                                 {/if}
                             </div>
                             <input 
                                 type="text" 
                                 class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                    ${isEmptyOrZero(editedProduct.dateBought) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
-                                bind:value={editedProduct.dateBought}
+                                    ${isEmptyOrZero(editedProduct.date_bought) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                bind:value={editedProduct.date_bought}
                                 disabled={isSaving}
                             />
                         </div>
                         <div>
                             <div class="flex items-center mb-1">
                                 <label class="block text-sm font-medium text-gray-700">Date Sold</label>
-                                {#if isEmptyOrZero(editedProduct.dateSold)}
+                                {#if isEmptyOrZero(editedProduct.date_sold)}
                                     <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
                                 {/if}
                             </div>
                             <input 
                                 type="text" 
                                 class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                    ${isEmptyOrZero(editedProduct.dateSold) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
-                                bind:value={editedProduct.dateSold}
+                                    ${isEmptyOrZero(editedProduct.date_sold) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                bind:value={editedProduct.date_sold}
                                 disabled={isSaving}
                             />
                         </div>
@@ -328,15 +340,15 @@
                         <div>
                             <div class="flex items-center mb-1">
                                 <label class="block text-sm font-medium text-gray-700">Invoice No</label>
-                                {#if isEmptyOrZero(editedProduct.invoiceNo)}
+                                {#if isEmptyOrZero(editedProduct.invoice_no_xero)}
                                     <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Empty</span>
                                 {/if}
                             </div>
                             <input 
                                 type="text" 
                                 class={`text-black w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                                    ${isEmptyOrZero(editedProduct.invoiceNo) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
-                                bind:value={editedProduct.invoiceNo}
+                                    ${isEmptyOrZero(editedProduct.invoice_no_xero) ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
+                                bind:value={editedProduct.invoice_no_xero}
                                 disabled={isSaving}
                             />
                         </div>
@@ -349,7 +361,7 @@
                                     type="checkbox" 
                                     id="onWebsite"
                                     class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                    bind:checked={editedProduct.onWebsite}
+                                    bind:checked={editedProduct.on_website}
                                     disabled={isSaving}
                                 />
                                 <label for="onWebsite" class="ml-2 block text-sm text-gray-900">
@@ -397,7 +409,7 @@
         <!-- Modal Footer -->
         <div class="p-6 border-t flex justify-end space-x-3">
             <button 
-                on:click={() => { showEditProductModal = false; }}
+                on:click={() => { show = false; }}
                 class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
                 disabled={isSaving}
             >
@@ -420,7 +432,7 @@
                     </svg>
                     <span class="text-white">Saving...</span>
                 {:else}
-                    <span class="text-white">Save Changes</span>
+                    <span class="text-white"> {product ? "Save Changes" : "Add Product"}</span>
                 {/if}
             </button>
         </div>

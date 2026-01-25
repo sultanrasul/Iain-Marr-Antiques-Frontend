@@ -1,24 +1,16 @@
-<script>
-// @ts-nocheck
+<script lang="ts">
+  import type { Product } from "@/models/product";
+
 
     export let showEditPrintModal;
-    export let editedProduct; 
-    export let selectedProducts;
-
-    // Format currency
-    const formatCurrency = (value) => {
-        return new Intl.NumberFormat('en-GB', {
-            style: 'currency',
-            currency: 'GBP'
-        }).format(value);
-    };
+    export let editedProduct: Product | null; 
+    export let selectedProducts: Product[] | null;
 
     // Save edited product
     function saveEditedProduct() {
         if (editedProduct) {
-            selectedProducts = selectedProducts.map(p =>
-                p.id === editedProduct.id ? editedProduct : p
-            );
+            selectedProducts = (selectedProducts ?? []).map( p => p.sku_no === editedProduct!.sku_no ? editedProduct! : p );
+
             editedProduct = null;
             showEditPrintModal = false;
         }
@@ -55,7 +47,7 @@
                         <input 
                             type="text" 
                             class="text-black/50 w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-not-allowed" 
-                            bind:value={editedProduct.sku}
+                            bind:value={editedProduct.sku_no}
                             disabled
                         />
                     </div>
@@ -64,7 +56,7 @@
                         <input 
                             type="text" 
                             class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                            bind:value={editedProduct.name}
+                            bind:value={editedProduct.item_description}
                         />
                     </div>  
 
@@ -74,7 +66,7 @@
                             type="number" 
                             step="0.01"
                             class="text-black w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                            bind:value={editedProduct.price}
+                            bind:value={editedProduct.selling_price}
                         />
                     </div>
 

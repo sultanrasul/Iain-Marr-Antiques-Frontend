@@ -1,34 +1,36 @@
-<script>
+<script lang="ts">
+  import type { Product } from "@/models/product";
   import { BACKEND_URL } from "../../../conf";
-  // @ts-nocheck
   import EditPrintModal from "./EditPrintModal.svelte";
   import { toast } from "svelte-sonner";
 
-  export let showPrintModal;
-  export let selectedProducts;
-  export let products;
+  export let showPrintModal: boolean;
+  export let selectedProducts : Product[];
+  export let products : Product[];
 
   let isLoading = false;
-  let showEditPrintModal;
-  let editedProduct = null;
+  let showEditPrintModal = false;
+  let editedProduct: null | Product = null;
   let customerName = "";
   let markAsSold = true;
   let printReceipt = true;
   let emailReceipt = false;
   let emailAddress = "";
   let emailError = "";
-  let paymentType;
+  let paymentType = "";
   let duplicateCount = 1;
 
   // Email validation function
-  function validateEmail(email) {
+  function validateEmail(email: string) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
 
   // Validate email on input change
-  function handleEmailInput(event) {
-    emailAddress = event.target.value;
+  function handleEmailInput(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+
+    emailAddress = input.value;
     if (!emailAddress) {
       emailError = "";
       return;
@@ -52,19 +54,21 @@
     isLoading = true;
     try {
       const requestBody = {
-        selectedProducts: selectedProducts,
-        customerName: customerName,
-        logSold: markAsSold,
-        duplicateCount: printReceipt ? duplicateCount : 0,
+        products: selectedProducts,
+        customer_name: customerName,
+        email_address: emailAddress,
+        mark_as_sold: markAsSold,
+        copies: printReceipt ? duplicateCount : 0,
+      } as {
+        products: Product[];
+        customer_name: string;
+        mark_as_sold: boolean;
+        copies: number;
+        email_address: string;
       };
 
-      // Add email data if email receipt is selected
-      if (emailReceipt && emailAddress) {
-        requestBody.emailReceipt = true;
-        requestBody.emailAddress = emailAddress;
-      }
 
-      const response = await fetch(BACKEND_URL+'/print_labels', {
+      const response = await fetch(BACKEND_URL+'/sales/print-request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,18 +80,18 @@
       const result = await response.json();
 
       if (!response.ok) {
-        if (result.error) {
-          throw new Error(result.error);
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        // Check for multiple error formats
+        const errorMessage = result.detail || result.error || `HTTP error! status: ${response.status}`;
+        console.error("Print request failed:", errorMessage);
+        toast.error(errorMessage);
+        return;
       }
 
       // Update sold status if necessary
       if (markAsSold) {
-        const selectedProductIds = new Set(selectedProducts.map(p => p.id));
+        const selectedProductIds = new Set(selectedProducts.map(p => p.sku_no));
         products = products.map(product => {
-          if (selectedProductIds.has(product.id)) {
+          if (selectedProductIds.has(product.sku_no)) {
             return { ...product, sold: true };
           }
           return product;
@@ -112,24 +116,18 @@
 
     } catch (err) {
       console.error("Failed to process request", err);
-      toast.error(err.message || "Failed to process request. Please check the console for details.");
+      console.log("Error Message", err.message)
+      const errorMessage = err instanceof Error ? err.message : "Failed to process request. Please check the console for details.";
+      toast.error(errorMessage);
     } finally {
       isLoading = false;
     }
   }
 
   // Function to remove a product from selected items
-  function removeProduct(product) {
-    selectedProducts = selectedProducts.filter(p => p.id !== product.id);
+  function removeProduct(product: Product) {
+    selectedProducts = selectedProducts.filter(p => p.sku_no !== product.sku_no);
   }
-
-  // Format currency
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP'
-    }).format(value);
-  };
 
   // Generate button text based on selected options
   $: buttonText = (() => {
@@ -156,6 +154,12 @@
     emailError = "";
   }
 
+  $: totalPrice = selectedProducts.reduce(
+    (total, product) => total + product.selling_price * product.quantity,
+    0
+  );
+
+
 </script>
 
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -165,6 +169,7 @@
       <h2 class="text-xl font-bold text-gray-800">
         Print Receipts
       </h2>
+      <!-- svelte-ignore a11y_consider_explicit_label -->
       <button
         on:click={() => { 
           showPrintModal = false; 
@@ -350,23 +355,24 @@
           {/if}
         </div>
         
-        <div class="space-y-3 ">
+        <div class="space-y-3">
           {#each selectedProducts as product}
             <div class={`flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50
                 ${product.sold ? 'bg-red-50 border-red-200' : ''}`}>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center">
-                  <h3 class="font-semibold text-gray-800 truncate">{product.name}</h3>
+                  <h3 class="font-semibold text-gray-800 truncate">{product.item_description}</h3>
                   {#if product.sold}
                     <span class="ml-2 px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full">Sold</span>
                   {/if}
                 </div>
                 <div class="flex items-center mt-1 text-sm">
-                  <span class="font-medium text-blue-600">£{product.price.toFixed(2)}</span>
+                  <span class="font-medium text-blue-600">£{product.selling_price.toFixed(2)}</span>
                   <span class="mx-2 text-gray-300">•</span>
-                  <span class="text-gray-600 truncate">{product.sku}</span>
+                  <span class="text-gray-600 truncate">{product.sku_no}</span>
                 </div>
               </div>
+
               
               <!-- Action buttons container -->
               <div class="flex items-center space-x-2">
@@ -442,6 +448,15 @@
             </div>
           {/each}
         </div>
+        <div class="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-lg flex justify-between items-center">
+          <span class="text-lg font-medium text-gray-700">
+            Total
+          </span>
+          <span class="text-xl font-bold text-gray-900">
+            £{totalPrice.toFixed(2)}
+          </span>
+        </div>
+
       </div>
     </div>
     
@@ -470,7 +485,7 @@
         class:bg-blue-600={!isLoading}
         class:bg-gray-400={isLoading}
         class:hover:bg-blue-700={!isLoading}
-        disabled={isLoading || selectedProducts.length === 0 || (!emailReceipt && !markAsSold && !printReceipt) || (emailReceipt && (!emailAddress || emailError))}
+        disabled={isLoading || selectedProducts.length === 0 || (!emailReceipt && !markAsSold && !printReceipt) || (emailReceipt && (!emailAddress || !!emailError))}
         >
         {#if isLoading}
           <!-- Spinner -->

@@ -1,8 +1,9 @@
-<script>
-// @ts-nocheck
-    export let filteredProducts;
-    export let selectedProducts;
-    export let toggleProduct;
+<script lang="ts">
+    import type { Product } from "@/models/product";
+
+    export let filteredProducts: Product[];
+    export let selectedProducts: Product[];
+    export let toggleProduct: (product: Product) => void;
     export let openEditModal;
     export let showSoldItems;
 
@@ -20,7 +21,7 @@
     $: totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
     
     // Function to change page
-    function goToPage(page) {
+    function goToPage(page: number) {
         if (page >= 1 && page <= totalPages) {
             currentPage = page;
             // Scroll to top of products section for better UX
@@ -89,9 +90,11 @@
     <div class="products-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {#each paginatedProducts as product}
             <!-- Product Card -->
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
                 class={`bg-white rounded-xl shadow-md overflow-hidden border-2 transition-all duration-200 relative cursor-pointer
-                    ${selectedProducts.find(p => p.id === product.id) ? 'border-blue-500 shadow-lg' : 'border-transparent'}`}
+                    ${selectedProducts.find(p => p.sku_no === product.sku_no) ? 'border-blue-500 shadow-lg' : 'border-transparent'}`}
                 on:click={() => toggleProduct(product)}
             >
 
@@ -107,9 +110,9 @@
                 <div class="p-4">
                     <div class="flex justify-between items-start">
                         <div class="pr-2  w-[79%]">
-                            <h3 class="font-semibold text-gray-800 truncate">{product.name}</h3>
+                            <h3 class="font-semibold text-gray-800 truncate">{product.item_description}</h3>
                             <div class="mt-1">
-                                <span class="text-xl font-bold text-blue-600">£{product.price.toFixed(2)}</span>
+                                <span class="text-xl font-bold text-blue-600">£{product.selling_price}</span>
                             </div>
                         </div>
                         <button 
@@ -131,19 +134,19 @@
                             <svg class="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
                             </svg>
-                            <span>SKU: {product.sku}</span>
+                            <span>SKU: {product.sku_no}</span>
                         </div>
                         <div class="flex items-center">
                             <svg class="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
                             </svg>
-                            <span>IM SKU: {product.imSKU}</span>
+                            <span>IM SKU: {product.im_sku}</span>
                         </div>
                         <div class="flex items-center">
                             <svg class="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
-                            <span class="truncate">Seller: {product.seller}</span>
+                            <span class="truncate">Seller: {product.seller_name_address}</span>
                         </div>
                         <div class="flex items-center">
                             <svg class="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -156,7 +159,7 @@
                 </div>
                 
                 <div class={`py-1 text-center text-sm font-medium
-                    ${selectedProducts.find(p => p.id === product.id) 
+                    ${selectedProducts.find(p => p.sku_no === product.sku_no) 
                         ? product.sold 
                             ? 'bg-red-100 text-red-700' 
                             : 'bg-blue-50 text-blue-700' 
@@ -192,6 +195,7 @@
             
             <div class="flex items-center gap-1">
                 <!-- Previous Button -->
+                <!-- svelte-ignore a11y_consider_explicit_label -->
                 <button
                     on:click={() => goToPage(currentPage - 1)}
                     disabled={currentPage === 1}
@@ -209,7 +213,7 @@
                         <span class="px-2 py-1.5 text-gray-500">...</span>
                     {:else}
                         <button
-                            on:click={() => goToPage(page)}
+                            on:click={() => goToPage(Number(page))}
                             class={`px-3 py-1.5 rounded-md border transition-colors
                                 ${currentPage === page
                                     ? 'bg-blue-600 border-blue-600 text-white'
@@ -221,6 +225,7 @@
                 {/each}
                 
                 <!-- Next Button -->
+                <!-- svelte-ignore a11y_consider_explicit_label -->
                 <button
                     on:click={() => goToPage(currentPage + 1)}
                     disabled={currentPage === totalPages}

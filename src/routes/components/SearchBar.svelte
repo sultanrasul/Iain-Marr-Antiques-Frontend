@@ -1,34 +1,44 @@
-<script>
+<script lang="ts">
   import { FolderSync, Printer, PlusCircle, Settings, Wifi, WifiOff, Power, RefreshCw } from "lucide-svelte";
-  import { onMount } from "svelte";
+
   import { BACKEND_URL } from "../conf";
+  import type { Product } from "@/models/product";
+
+  // ---------- props ----------
+
+  export let searchTerm: string = "";
+
+  export let fetchProducts: () => Promise<void>;
+
+  export let showPrintModal: boolean;
+  export let showAddProductModal: boolean;
+
+  export let selectedProducts: Product[];
+
+  export let handleSort: (key: keyof Product) => void;
+
+  export let printerConnected: boolean;
 
 
-  export let searchTerm = "";
-  export let fetchProducts;
-  export let showPrintModal;
-  export let selectedProducts;
-  export let showAddProductModal;
-  export let handleSort;
-  export let sortConfig;
-  export let sortOptions = [];
+  export let sortConfig: { key: keyof Product; direction: "asc" | "desc" };
 
-  // New state variables
+  export let sortOptions: { id: keyof Product; name: string }[] = [];
+
+  // ---------- local state ----------
+
   let showSettingsModal = false;
-  export let printerConnected;
   let isCheckingPrinter = false;
 
-  // Reconnect Printer
-  async function reconnectPrinter() {
+  // ---------- printer ----------
+
+  async function reconnectPrinter(): Promise<void> {
     isCheckingPrinter = true;
     try {
-      const response = await fetch(`${BACKEND_URL}/reconnect_printer`);
-      if (response.ok) {
-        const data = await response.json();
-        printerConnected = data.connected;
-      } else {
-        printerConnected = false;
-      }
+      const response = await fetch(`${BACKEND_URL}/system/reconnect-printer`);
+      if (!response.ok) throw new Error("Failed");
+
+      const data: { connected: boolean } = await response.json();
+      printerConnected = data.connected;
     } catch (error) {
       console.error("Failed to check printer status:", error);
       printerConnected = false;
@@ -37,40 +47,43 @@
     }
   }
 
-  // Restart Raspberry Pi
-  async function restartPi() {
-    if(confirm("Are you sure you want to restart the Raspberry Pi?")){
-      try {
-        const response = await fetch(`${BACKEND_URL}/restart`, { method: "POST" });
-        if (response.ok) {
-          alert("Raspberry Pi is restarting...");
-        } else {
-          alert("Failed to restart Raspberry Pi");
-        }
-      } catch (error) {
-        console.error("Failed to restart Pi:", error);
-        alert("Failed to restart Raspberry Pi");
-      }
+  // ---------- system ----------
+
+  async function restartPi(): Promise<void> {
+    if (!confirm("Are you sure you want to restart the Raspberry Pi?")) return;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/system/restart`);
+
+      alert(
+        response.ok
+          ? "Raspberry Pi is restarting..."
+          : "Failed to restart Raspberry Pi"
+      );
+    } catch (error) {
+      console.error("Failed to restart Pi:", error);
+      alert("Failed to restart Raspberry Pi");
     }
   }
 
-  // Shutdown Raspberry Pi
-  async function shutdownPi() {
-    if (confirm("Are you sure you want to shutdown the Raspberry Pi?")) {
-      try {
-        const response = await fetch(`${BACKEND_URL}/shutdown`, { method: "POST" });
-        if (response.ok) {
-          alert("Raspberry Pi is shutting down...");
-        } else {
-          alert("Failed to shutdown Raspberry Pi");
-        }
-      } catch (error) {
-        console.error("Failed to shutdown Pi:", error);
-        alert("Failed to shutdown Raspberry Pi");
-      }
+  async function shutdownPi(): Promise<void> {
+    if (!confirm("Are you sure you want to shutdown the Raspberry Pi?")) return;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/system/shutdown`, {
+        method: "POST"
+      });
+
+      alert(
+        response.ok
+          ? "Raspberry Pi is shutting down..."
+          : "Failed to shutdown Raspberry Pi"
+      );
+    } catch (error) {
+      console.error("Failed to shutdown Pi:", error);
+      alert("Failed to shutdown Raspberry Pi");
     }
   }
-
 </script>
 <div class="bg-white rounded-xl shadow-lg p-4 mb-2" id="searchBar">
   <!-- Search Bar -->
