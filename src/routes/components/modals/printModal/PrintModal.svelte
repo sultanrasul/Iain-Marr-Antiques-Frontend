@@ -116,7 +116,6 @@
 
     } catch (err) {
       console.error("Failed to process request", err);
-      console.log("Error Message", err.message)
       const errorMessage = err instanceof Error ? err.message : "Failed to process request. Please check the console for details.";
       toast.error(errorMessage);
     } finally {

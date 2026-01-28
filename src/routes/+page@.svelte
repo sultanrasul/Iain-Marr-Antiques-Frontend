@@ -143,14 +143,17 @@
     // ---------- selection ----------
 
     function toggleProduct(product: Product): void {
+        let productCopy: Product = { ...product, quantity: 1 };
+        productCopy.quantity = 1;
         if (selectedProducts.some((p) => p.sku_no === product.sku_no)) {
             selectedProducts = selectedProducts.filter(
                 (p) => p.sku_no !== product.sku_no
             );
         } else {
-            selectedProducts = [...selectedProducts, { ...product }];
+            selectedProducts = [...selectedProducts, productCopy];
         }
     }
+
 
     function toggleAll(): void {
         selectedProducts =
