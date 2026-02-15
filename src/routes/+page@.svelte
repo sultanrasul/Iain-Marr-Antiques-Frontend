@@ -13,14 +13,18 @@
 
     import { BACKEND_URL } from './conf';
     import type { Product } from '@/models/product';
+    import type { PrintRequest } from '@/types';
+  import RecallModal from './components/modals/RecallModal.svelte';
 
     let products: Product[] = [];
     let selectedProducts: Product[] = [];
     let searchTerm = '';
+    let suspendedPrintRequests: PrintRequest[] = [];
 
     // Edit modal state
     let showEditProductModal = false;
     let showAddProductModal = false;
+    let showRecallModal = false;
     let editedProduct: Product | null = null;
     let editActiveTab: 'products' | 'print' = 'products';
 
@@ -63,6 +67,17 @@
     // ---------- data ----------
 
     async function fetchProducts(): Promise<void> {
+        const stored = localStorage.getItem("suspendedPrintRequests");
+
+        if (stored) {
+            try {
+                suspendedPrintRequests = JSON.parse(stored) as PrintRequest[];
+            } catch (error) {
+                console.error("Failed to parse suspendedPrintRequests", error);
+                suspendedPrintRequests = [];
+            }
+        }
+        
         try {
             isLoading = true;
             error = null;
@@ -225,7 +240,7 @@
         {:else}
 
             <!-- Controls -->
-            <SearchBar bind:printerConnected={printerConnected} bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
+            <SearchBar bind:showRecallModal={showRecallModal} bind:suspendedPrintRequests={suspendedPrintRequests} bind:printerConnected={printerConnected} bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
 
             <!-- Stats Summary -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -307,9 +322,18 @@
             
     {#if showPrintModal}
         <PrintModal
+            bind:suspendedPrintRequests={suspendedPrintRequests}
             bind:selectedProducts={selectedProducts}
             bind:showPrintModal={showPrintModal}
             bind:products={products}
+        />
+    {/if}
+    {#if showRecallModal}
+        <RecallModal
+            bind:suspendedPrintRequests={suspendedPrintRequests}
+            bind:selectedProducts={selectedProducts}
+            bind:showPrintModal={showPrintModal}
+            bind:showRecallModal={showRecallModal}
         />
     {/if}
 </div>

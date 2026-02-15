@@ -3,6 +3,7 @@
 
   import { BACKEND_URL } from "../conf";
   import type { Product } from "@/models/product";
+  import type { PrintRequest } from "@/types";
 
   // ---------- props ----------
 
@@ -12,12 +13,15 @@
 
   export let showPrintModal: boolean;
   export let showAddProductModal: boolean;
+  export let showRecallModal: boolean;
 
   export let selectedProducts: Product[];
 
   export let handleSort: (key: keyof Product) => void;
 
   export let printerConnected: boolean;
+
+  export let suspendedPrintRequests: PrintRequest[];
 
 
   export let sortConfig: { key: keyof Product; direction: "asc" | "desc" };
@@ -85,6 +89,7 @@
     }
   }
 </script>
+
 <div class="bg-white rounded-xl shadow-lg p-4 mb-2" id="searchBar">
   <!-- Search Bar -->
   <div class="relative mb-4">
@@ -122,8 +127,7 @@
       {/each}
     </div>
 
-    <!-- Action Buttons -->
-    <div class="flex flex-wrap gap-2 items-center">
+    <div class="flex items-center gap-3 flex-wrap">
       <!-- Printer Status Indicator -->
       <div class="flex items-center mr-2" title="{printerConnected ? 'Printer connected' : 'Printer disconnected'}">
         {#if isCheckingPrinter}
@@ -135,43 +139,60 @@
         {/if}
       </div>
 
-      <!-- Print Button -->
-      <button 
-        on:click={() => { showPrintModal = true}}
-        disabled={selectedProducts.length === 0}
-        class="flex items-center min-w-[220px] px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        <Printer size={30} class="mr-2"/>
-        Print Selected ({selectedProducts.length})
-      </button>
+      <!-- Primary Sale Actions -->
+      <div class="flex items-center gap-2">
+        <button 
+          on:click={() => showPrintModal = true}
+          disabled={selectedProducts.length === 0}
+          class="flex items-center px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+          <Printer size={20} class="mr-2"/>
+          Print ({selectedProducts.length})
+        </button>
+        
+        <button 
+          on:click={() => showRecallModal = true}
+          disabled={suspendedPrintRequests.length === 0}
+          class="px-4 py-2.5 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Recall
+        </button>
+      </div>
 
-      <!-- Refresh Button -->
-      <button 
-        on:click={fetchProducts}
-        class="px-4 py-2.5 rounded-lg font-medium flex items-center bg-green-600/80 text-white hover:bg-green-600 transition-colors"
-        title="Refresh stock"
-      >  
-        <FolderSync size={30} class=""/>
-      </button>
+      <!-- Divider -->
+      <div class="hidden lg:block w-px h-8 bg-gray-300"></div>
 
-      <!-- Add Stock Button -->
-      <button 
-        on:click={() => {showAddProductModal = true;}}
-        class="px-4 py-2.5 rounded-lg font-medium flex items-center bg-green-600/80 text-white hover:bg-green-600 transition-colors"
-        title="Add stock"
-      >  
-        <PlusCircle size={30} class=""/>
-      </button>
+      <!-- System Controls (icon only) -->
+      <div class="flex items-center gap-2">
 
-      <!-- Settings Button -->
-      <button 
-        on:click={() => showSettingsModal = true}
-        class="px-4 py-2.5 rounded-lg font-medium flex items-center bg-gray-600/80 text-white hover:bg-gray-600 transition-colors"
-        title="Settings"
-      >  
-        <Settings size={30} class=""/>
-      </button>
+        <button 
+          on:click={fetchProducts}
+          class="p-2 bg-green-600/80 text-white rounded-lg hover:bg-green-600"
+          title="Refresh stock"
+        >
+          <FolderSync size={20}/>
+        </button>
+
+        <button 
+          on:click={() => showAddProductModal = true}
+          class="p-2 bg-green-600/80 text-white rounded-lg hover:bg-green-600"
+          title="Add stock"
+        >
+          <PlusCircle size={20}/>
+        </button>
+
+        <button 
+          on:click={() => showSettingsModal = true}
+          class="p-2 bg-gray-600/80 text-white rounded-lg hover:bg-gray-600"
+          title="Settings"
+        >
+          <Settings size={20}/>
+        </button>
+      </div>
+
     </div>
+
+
   </div>
 </div>
 

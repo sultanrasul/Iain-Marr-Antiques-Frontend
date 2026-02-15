@@ -24,7 +24,6 @@
         let [_, major, minor] = match;
 
         let minorNum = parseInt(minor, 10);
-
         // If minor is 999, roll over
         if (minorNum === 999) {
             let majorNum = parseInt(major, 10) + 1;

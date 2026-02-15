@@ -3,10 +3,12 @@
   import { BACKEND_URL } from "../../../conf";
   import EditPrintModal from "./EditPrintModal.svelte";
   import { toast } from "svelte-sonner";
+  import type { PrintRequest } from "@/types";
 
   export let showPrintModal: boolean;
   export let selectedProducts : Product[];
   export let products : Product[];
+  export let suspendedPrintRequests: PrintRequest[];
 
   let isLoading = false;
   let showEditPrintModal = false;
@@ -53,18 +55,12 @@
 
     isLoading = true;
     try {
-      const requestBody = {
+      const requestBody: PrintRequest = {
         products: selectedProducts,
         customer_name: customerName,
         email_address: emailAddress,
         mark_as_sold: markAsSold,
         copies: printReceipt ? duplicateCount : 0,
-      } as {
-        products: Product[];
-        customer_name: string;
-        mark_as_sold: boolean;
-        copies: number;
-        email_address: string;
       };
 
 
@@ -121,6 +117,33 @@
     } finally {
       isLoading = false;
     }
+  }
+
+  function suspendSale(){
+    const printRequest: PrintRequest = {
+      products: selectedProducts,
+      customer_name: customerName,
+      email_address: emailAddress,
+      mark_as_sold: markAsSold,
+      copies: printReceipt ? duplicateCount : 0,
+    };
+
+    suspendedPrintRequests = [
+      ...suspendedPrintRequests,
+      printRequest
+    ];
+
+
+    localStorage.setItem(
+      "suspendedPrintRequests",
+      JSON.stringify(suspendedPrintRequests)
+    );
+
+    selectedProducts = [];
+    showPrintModal = false;
+
+    toast.success("Sale Has been suspended!")
+    
   }
 
   // Function to remove a product from selected items
@@ -460,46 +483,68 @@
     </div>
     
     <!-- Modal Footer -->
-    <div class="p-6 border-t flex justify-end space-x-3">
-      <button 
-        on:click={() => { 
-          showPrintModal = false; 
-          customerName = ''; 
-          markAsSold = true; 
-          printReceipt = true;
-          emailReceipt = false;
-          emailAddress = '';
-          emailError = '';
-          paymentType = ''; 
-          duplicateCount = 1; 
-        }}
-        class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
-      >
-        Back
-      </button>
+    <div class="p-6 border-t justify-between flex">
 
       <button 
-        on:click={printLabels}
+        on:click={suspendSale}
         class="px-5 py-2.5 rounded-lg flex items-center justify-center min-w-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
-        class:bg-blue-600={!isLoading}
+        class:bg-yellow-600={!isLoading}
         class:bg-gray-400={isLoading}
-        class:hover:bg-blue-700={!isLoading}
-        disabled={isLoading || selectedProducts.length === 0 || (!emailReceipt && !markAsSold && !printReceipt) || (emailReceipt && (!emailAddress || !!emailError))}
+        class:hover:bg-yellow-700={!isLoading}
+        disabled={isLoading || selectedProducts.length === 0 || (emailReceipt && (!emailAddress || !!emailError))}
         >
-        {#if isLoading}
-          <!-- Spinner -->
-          <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span class="text-white">Processing...</span>
-        {:else}
+
           <span class="text-white">
-            {buttonText}
+            Suspend Sale
           </span>
-        {/if}
+          
       </button>
+
+        <div class="flex space-x-3">
+
+          <button 
+            on:click={() => { 
+              showPrintModal = false; 
+              customerName = ''; 
+              markAsSold = true; 
+              printReceipt = true;
+              emailReceipt = false;
+              emailAddress = '';
+              emailError = '';
+              paymentType = ''; 
+              duplicateCount = 1; 
+            }}
+            class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+          >
+            Back
+          </button>
+    
+          <button 
+            on:click={printLabels}
+            class="px-5 py-2.5 rounded-lg flex items-center justify-center min-w-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
+            class:bg-blue-600={!isLoading}
+            class:bg-gray-400={isLoading}
+            class:hover:bg-blue-700={!isLoading}
+            disabled={isLoading || selectedProducts.length === 0 || (!emailReceipt && !markAsSold && !printReceipt) || (emailReceipt && (!emailAddress || !!emailError))}
+            >
+            {#if isLoading}
+              <!-- Spinner -->
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span class="text-white">Processing...</span>
+            {:else}
+              <span class="text-white">
+                {buttonText}
+              </span>
+            {/if}
+          </button>
+
+        </div>
+
     </div>
+
   </div>
 </div>
 
