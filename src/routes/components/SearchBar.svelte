@@ -142,25 +142,25 @@
       <!-- Primary Sale Actions -->
       <div class="flex items-center gap-2">
         <button 
-          on:click={() => showPrintModal = true}
-          disabled={selectedProducts.length === 0}
-          class="flex items-center px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-          <Printer size={20} class="mr-2"/>
-          Print ({selectedProducts.length})
-        </button>
-        
-        <button 
-          on:click={() => showRecallModal = true}
-          disabled={suspendedPrintRequests.length === 0}
-          class="px-4 py-2.5 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        on:click={() => showRecallModal = true}
+        disabled={suspendedPrintRequests.length === 0}
+        class="px-4 py-2.5 bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Recall
-        </button>
+        Recall ({suspendedPrintRequests.length})
+      </button>
+      
+      <button 
+        on:click={() => showPrintModal = true}
+        disabled={selectedProducts.length === 0}
+        class="flex items-center px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+        <Printer size={20} class="mr-2"/>
+        Print ({selectedProducts.length})
+      </button>
       </div>
 
       <!-- Divider -->
-      <div class="hidden lg:block w-px h-8 bg-gray-300"></div>
+      <div class="w-px h-8 bg-gray-300"></div>
 
       <!-- System Controls (icon only) -->
       <div class="flex items-center gap-2">

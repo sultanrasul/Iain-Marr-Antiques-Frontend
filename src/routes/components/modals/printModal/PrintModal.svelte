@@ -133,8 +133,8 @@
     };
 
     suspendedPrintRequests = [
-      ...suspendedPrintRequests,
-      printRequest
+      printRequest,
+      ...suspendedPrintRequests
     ];
 
 
@@ -504,7 +504,7 @@
         >
 
           <span class="text-white">
-            Suspend Sale
+            Suspend
           </span>
           
       </button>

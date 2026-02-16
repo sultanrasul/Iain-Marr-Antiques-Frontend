@@ -15,6 +15,10 @@
   export let emailAddress: string;
 
   let selectedSuspendedRequest: PrintRequest | null = null;
+  let selectedIndex: number;
+  
+  let showWarningModal = false;
+  let overwriteProducts = false;
 
   // Helper to format date/time (dummy for now – you can replace with actual timestamp later)
   function formatDateTime(timestamp?: string | Date): string {
@@ -40,6 +44,12 @@
   function recallSession() {
     if (!selectedSuspendedRequest) return;
 
+    if(selectedProducts.length > 0 && !overwriteProducts){
+      // Show Warning Message
+      showWarningModal = true;
+      return
+    }
+
     // Your recall logic here – populate the print modal with this request's data
     // Example:
     selectedProducts = [...selectedSuspendedRequest.products];
@@ -48,14 +58,33 @@
     if (emailAddress && emailAddress.length > 0) showEmailInput = true
     markAsSold = selectedSuspendedRequest.mark_as_sold;
     copies = selectedSuspendedRequest.copies;
-    if (copies > 0) printReceipt = true;
 
+    printReceipt = true ? copies > 0 : false;
+
+    removeSuspendedSale(selectedIndex);
     showRecallModal = false;
     showPrintModal = true;
+    
+    // Reset overwrite flag for next time
+    overwriteProducts = false;
+  }
+
+
+  function removeSuspendedSale(index: number) {
+      // Remove the item at the given index
+      suspendedPrintRequests = suspendedPrintRequests.filter((_, i) => i !== index);
+      
+      // Persist to localStorage
+      localStorage.setItem("suspendedPrintRequests", JSON.stringify(suspendedPrintRequests));
+      
+      // If the removed item was selected, clear the selection
+      if (selectedSuspendedRequest && !suspendedPrintRequests.includes(selectedSuspendedRequest)) {
+          selectedSuspendedRequest = null;
+      }
   }
 </script>
 
-{#if showRecallModal}
+
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
     <!-- Modal Header -->
@@ -87,14 +116,14 @@
         <div class="space-y-3">
           <!-- svelte-ignore a11y_click_events_have_key_events -->
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          {#each suspendedPrintRequests as request}
+          {#each suspendedPrintRequests as request, i}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <div
               class="p-4 border rounded-lg cursor-pointer transition-colors
                 {selectedSuspendedRequest === request 
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-gray-200 hover:bg-gray-50'}"
-              on:click={() => selectedSuspendedRequest = request}
+              on:click={() => {selectedSuspendedRequest = request;selectedIndex=i}}
             >
               <div class="flex items-start gap-3">
                 <!-- Selection radio -->
@@ -106,16 +135,16 @@
                   >
                     {#if selectedSuspendedRequest === request}
                       <div class="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                    {/if}
+                      {/if}
+                    </div>
                   </div>
-                </div>
-
-                <!-- Request details -->
-                <div class="flex-1 min-w-0">
-                  <div class="flex flex-wrap items-center gap-2 mb-1">
-                    <!-- Timestamp (dummy for now) -->
-                    <span class="font-medium text-gray-900">
-                      {formatDateTime(request.timestamp)}
+                  
+                  <!-- Request details -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                      <!-- Timestamp (dummy for now) -->
+                      <span class="font-medium text-gray-900">
+                        {formatDateTime(request.timestamp)}
                     </span>
 
                     <!-- Customer name badge (if exists) -->
@@ -166,6 +195,22 @@
                     </div>
                   {/if}
                 </div>
+
+                
+                
+                <!-- Remove button -->
+                <button 
+                  on:click={() => removeSuspendedSale(i)}
+                  class="p-2 bg-red-50 rounded-full hover:bg-red-100 transition-colors flex items-center group self-center"
+                  title="Remove from list"
+                >
+                  <svg class="w-5 h-5 text-red-500 group-hover:text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                  </svg>
+                  <span class="ml-1 text-sm font-medium text-red-500 group-hover:text-red-700 hidden md:inline">
+                    Remove
+                  </span>
+                </button>
               </div>
             </div>
           {/each}
@@ -191,4 +236,50 @@
     </div>
   </div>
 </div>
+
+
+<!-- Warning Modal (appears on top of recall modal) -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+{#if showWarningModal}
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden flex flex-col">
+      <!-- Header -->
+      <div class="p-6 border-b flex justify-between items-center">
+        <h2 class="text-xl font-bold text-gray-800">Replace current sale?</h2>
+        <button
+          on:click={() => showWarningModal = false}
+          class="text-gray-400 hover:text-gray-600"
+          aria-label="Close"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Content -->
+      <div class="p-6">
+        <p class="text-gray-600">
+          Current selected products will be replaced with the recalled sale.
+        </p>
+      </div>
+      
+      <!-- Footer -->
+      <div class="p-6 border-t flex justify-between space-x-3">
+        <button
+          class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+          on:click={() => showWarningModal = false}
+        >
+          No, go back
+        </button>
+        <button
+          class="px-5 py-2.5 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700"
+          on:click={() => { overwriteProducts = true; showWarningModal = false; recallSession(); }}
+        >
+          Yes, replace
+        </button>
+      </div>
+    </div>
+  </div>
 {/if}
