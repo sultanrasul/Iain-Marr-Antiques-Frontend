@@ -14,7 +14,16 @@
     import { BACKEND_URL } from './conf';
     import type { Product } from '@/models/product';
     import type { PrintRequest } from '@/types';
-  import RecallModal from './components/modals/RecallModal.svelte';
+    import RecallModal from './components/modals/RecallModal.svelte';
+
+    
+    // Print Request Variables
+    let copies = 1;
+    let printReceipt = true;
+    let customerName = "";
+    let markAsSold = true;
+    let showEmailInput = false;
+    let emailAddress = "";
 
     let products: Product[] = [];
     let selectedProducts: Product[] = [];
@@ -326,14 +335,27 @@
             bind:selectedProducts={selectedProducts}
             bind:showPrintModal={showPrintModal}
             bind:products={products}
+
+            bind:copies={copies}
+            bind:printReceipt={printReceipt}
+            bind:customerName={customerName}
+            bind:markAsSold={markAsSold}
+            bind:showEmailInput={showEmailInput}
+            bind:emailAddress={emailAddress}
         />
     {/if}
     {#if showRecallModal}
         <RecallModal
             bind:suspendedPrintRequests={suspendedPrintRequests}
-            bind:selectedProducts={selectedProducts}
             bind:showPrintModal={showPrintModal}
             bind:showRecallModal={showRecallModal}
+            bind:selectedProducts={selectedProducts}
+            bind:copies={copies}
+            bind:printReceipt={printReceipt}
+            bind:customerName={customerName}
+            bind:markAsSold={markAsSold}
+            bind:showEmailInput={showEmailInput}
+            bind:emailAddress={emailAddress}
         />
     {/if}
 </div>

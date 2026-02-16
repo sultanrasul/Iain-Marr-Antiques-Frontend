@@ -3,9 +3,16 @@
   import type { PrintRequest } from "@/types";
 
   export let suspendedPrintRequests: PrintRequest[] = [];
-  export let selectedProducts: Product[];
   export let showPrintModal: boolean = false;
   export let showRecallModal: boolean = false;
+
+  export let selectedProducts: Product[];
+  export let copies: number;
+  export let printReceipt: boolean;
+  export let customerName: string;
+  export let markAsSold: boolean;
+  export let showEmailInput: boolean;
+  export let emailAddress: string;
 
   let selectedSuspendedRequest: PrintRequest | null = null;
 
@@ -35,12 +42,13 @@
 
     // Your recall logic here – populate the print modal with this request's data
     // Example:
-    // selectedProducts = [...selectedSuspendedRequest.products];
-    // customerName = selectedSuspendedRequest.customer_name;
-    // emailReceipt = !!selectedSuspendedRequest.email_address;
-    // emailAddress = selectedSuspendedRequest.email_address;
-    // markAsSold = selectedSuspendedRequest.mark_as_sold;
-    // duplicateCount = selectedSuspendedRequest.copies;
+    selectedProducts = [...selectedSuspendedRequest.products];
+    customerName = selectedSuspendedRequest.customer_name;
+    emailAddress = selectedSuspendedRequest.email_address;
+    if (emailAddress && emailAddress.length > 0) showEmailInput = true
+    markAsSold = selectedSuspendedRequest.mark_as_sold;
+    copies = selectedSuspendedRequest.copies;
+    if (copies > 0) printReceipt = true;
 
     showRecallModal = false;
     showPrintModal = true;
@@ -107,7 +115,7 @@
                   <div class="flex flex-wrap items-center gap-2 mb-1">
                     <!-- Timestamp (dummy for now) -->
                     <span class="font-medium text-gray-900">
-                      14:22 20/01/2026
+                      {formatDateTime(request.timestamp)}
                     </span>
 
                     <!-- Customer name badge (if exists) -->

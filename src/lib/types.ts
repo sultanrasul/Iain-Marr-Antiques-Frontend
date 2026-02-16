@@ -16,4 +16,5 @@ export type PrintRequest = {
   email_address: string;
   mark_as_sold: boolean;
   copies: number;
+  timestamp: Date;
 };

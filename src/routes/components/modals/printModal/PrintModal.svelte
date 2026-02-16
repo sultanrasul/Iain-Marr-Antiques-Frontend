@@ -4,23 +4,26 @@
   import EditPrintModal from "./EditPrintModal.svelte";
   import { toast } from "svelte-sonner";
   import type { PrintRequest } from "@/types";
+  import { onMount } from "svelte";
 
   export let showPrintModal: boolean;
   export let selectedProducts : Product[];
   export let products : Product[];
   export let suspendedPrintRequests: PrintRequest[];
 
+  export let copies = 1;
+  export let printReceipt = true;
+  export let customerName = "";
+  export let markAsSold = true;
+  export let showEmailInput = false;
+  export let emailAddress = "";
+
   let isLoading = false;
   let showEditPrintModal = false;
   let editedProduct: null | Product = null;
-  let customerName = "";
-  let markAsSold = true;
-  let printReceipt = true;
-  let emailReceipt = false;
-  let emailAddress = "";
   let emailError = "";
   let paymentType = "";
-  let duplicateCount = 1;
+
 
   // Email validation function
   function validateEmail(email: string) {
@@ -48,7 +51,7 @@
   // Print selected products
   async function printLabels() {
     // Final email validation before submission
-    if (emailReceipt && emailAddress && !validateEmail(emailAddress)) {
+    if (emailAddress && !validateEmail(emailAddress)) {
       emailError = "Please enter a valid email address";
       return;
     }
@@ -60,7 +63,8 @@
         customer_name: customerName,
         email_address: emailAddress,
         mark_as_sold: markAsSold,
-        copies: printReceipt ? duplicateCount : 0,
+        copies: printReceipt ? copies : 0,
+        timestamp: new Date
       };
 
 
@@ -96,8 +100,8 @@
       }
 
       let successMessage = `Successfully processed ${selectedProducts.length} item(s)!`;
-      if (printReceipt) successMessage += ` Printed ${duplicateCount} copy(s).`;
-      if (emailReceipt && emailAddress) successMessage += ` Email sent to ${emailAddress}.`;
+      if (printReceipt) successMessage += ` Printed ${copies} copy(s).`;
+      if (emailAddress) successMessage += ` Email sent to ${emailAddress}.`;
       if (markAsSold) successMessage += ` Items marked as sold.`;
 
       toast.success(successMessage);
@@ -105,7 +109,6 @@
       customerName = "";
       markAsSold = true;
       printReceipt = true;
-      emailReceipt = false;
       emailAddress = "";
       emailError = "";
       showPrintModal = false;
@@ -125,7 +128,8 @@
       customer_name: customerName,
       email_address: emailAddress,
       mark_as_sold: markAsSold,
-      copies: printReceipt ? duplicateCount : 0,
+      copies: printReceipt ? copies : 0,
+      timestamp: new Date()
     };
 
     suspendedPrintRequests = [
@@ -142,7 +146,15 @@
     selectedProducts = [];
     showPrintModal = false;
 
-    toast.success("Sale Has been suspended!")
+    customerName = ''; 
+    markAsSold = true; 
+    printReceipt = true;
+    emailAddress = '';
+    emailError = '';
+    paymentType = ''; 
+    copies = 1; 
+
+    toast.success("Sale has been suspended!")
     
   }
 
@@ -154,25 +166,30 @@
   // Generate button text based on selected options
   $: buttonText = (() => {
     const actions = [];
-    if (printReceipt) actions.push(`Print${duplicateCount > 1 ? ` (${duplicateCount})` : ''}`);
-    if (emailReceipt) actions.push('Email');
+    if (printReceipt) actions.push(`Print${copies > 1 ? ` (${copies})` : ''}`);
+    if (showEmailInput) actions.push('Email');
     if (markAsSold) actions.push('Mark Sold');
     
     if (actions.length === 0) return 'Confirm';
     return actions.join(' & ');
   })();
 
-  // Reactive validation for email when emailReceipt is toggled
-  $: if (emailReceipt && emailAddress && !validateEmail(emailAddress)) {
-    emailError = "Please enter a valid email address";
-  } else if (emailReceipt && !emailAddress) {
-    emailError = "Email address is required";
-  } else {
-    emailError = "";
+  $: {
+    if (showEmailInput) {
+      if (!emailAddress) {
+        emailError = "Email address is required";
+      } else if (!validateEmail(emailAddress)) {
+        emailError = "Please enter a valid email address";
+      } else {
+        emailError = "";
+      }
+    } else {
+      emailError = "";
+    }
   }
 
   // Clear email error when email receipt is disabled
-  $: if (!emailReceipt) {
+  $: if (!emailAddress) {
     emailError = "";
   }
 
@@ -195,14 +212,6 @@
       <button
         on:click={() => { 
           showPrintModal = false; 
-          customerName = ''; 
-          markAsSold = true; 
-          printReceipt = true;
-          emailReceipt = false;
-          emailAddress = '';
-          emailError = '';
-          paymentType = ''; 
-          duplicateCount = 1; 
         }}
         class="text-gray-400 hover:text-gray-600"
       >
@@ -238,13 +247,13 @@
           <!-- Email Receipt Checkbox -->
            <!-- svelte-ignore a11y_click_events_have_key_events -->
           <div class="p-3 bg-purple-50 rounded-lg border border-purple-200 cursor-pointer h-full" 
-               on:click={() => {emailReceipt = !emailReceipt}}>
+               on:click={() => {showEmailInput = !showEmailInput}}>
             <div class="flex items-center justify-between mb-2">
               <div class="flex items-center">
                 <input
                   id="emailReceipt"
                   type="checkbox"
-                  bind:checked={emailReceipt}
+                  bind:checked={showEmailInput}
                   class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                 />
                 <p class="ml-2 block text-sm font-medium text-gray-700">
@@ -256,7 +265,7 @@
               </svg>
             </div>
             <p class="text-xs text-purple-600">
-              {#if emailReceipt}
+              {#if showEmailInput}
                 Email receipt will be sent
               {:else}
                 No email receipt
@@ -317,17 +326,17 @@
                 <button 
                   type="button" 
                   class="bg-white text-gray-600 hover:bg-gray-100 border border-gray-300 rounded p-1 h-6 w-6 flex items-center justify-center text-lg"
-                  on:click|stopPropagation={() => duplicateCount > 1 ? duplicateCount-- : null}
-                  disabled={duplicateCount <= 1}
+                  on:click|stopPropagation={() => copies > 1 ? copies-- : null}
+                  disabled={copies <= 1}
                 >
                   -
                 </button>
-                <span class="text-xs font-medium text-gray-700">{duplicateCount} {duplicateCount === 1 ? 'copy' : 'copies'}</span>
+                <span class="text-xs font-medium text-gray-700">{copies} {copies === 1 ? 'copy' : 'copies'}</span>
                 <button 
                   type="button" 
                   class="bg-white text-gray-600 hover:bg-gray-100 border border-gray-300 rounded p-1 h-6 w-6 flex items-center justify-center text-lg"
-                  on:click|stopPropagation={() => duplicateCount < 10 ? duplicateCount++ : null}
-                  disabled={duplicateCount >= 10}
+                  on:click|stopPropagation={() => copies < 10 ? copies++ : null}
+                  disabled={copies >= 10}
                 >
                   +
                 </button>
@@ -340,7 +349,7 @@
       </div>
 
       <!-- Email Input (Conditional) -->
-      {#if emailReceipt}
+      {#if showEmailInput}
         <div class="mb-6 p-4 bg-purple-50 rounded-lg border {emailError ? 'border-red-300' : 'border-purple-200'}">
           <p class="block text-sm font-medium text-purple-700 mb-2">
             Email Address <span class="text-red-500">*</span>
@@ -491,7 +500,7 @@
         class:bg-yellow-600={!isLoading}
         class:bg-gray-400={isLoading}
         class:hover:bg-yellow-700={!isLoading}
-        disabled={isLoading || selectedProducts.length === 0 || (emailReceipt && (!emailAddress || !!emailError))}
+        disabled={isLoading || selectedProducts.length === 0}
         >
 
           <span class="text-white">
@@ -508,11 +517,10 @@
               customerName = ''; 
               markAsSold = true; 
               printReceipt = true;
-              emailReceipt = false;
               emailAddress = '';
               emailError = '';
               paymentType = ''; 
-              duplicateCount = 1; 
+              copies = 1; 
             }}
             class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
           >
@@ -525,7 +533,7 @@
             class:bg-blue-600={!isLoading}
             class:bg-gray-400={isLoading}
             class:hover:bg-blue-700={!isLoading}
-            disabled={isLoading || selectedProducts.length === 0 || (!emailReceipt && !markAsSold && !printReceipt) || (emailReceipt && (!emailAddress || !!emailError))}
+            disabled={ isLoading || selectedProducts.length === 0 || (!markAsSold && !printReceipt && !showEmailInput) || (showEmailInput && !!emailError)}
             >
             {#if isLoading}
               <!-- Spinner -->
