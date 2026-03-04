@@ -126,7 +126,7 @@
     const printRequest: PrintRequest = {
       products: selectedProducts,
       customer_name: customerName,
-      email_address: emailAddress,
+      email_address: !showEmailInput ? "" : emailAddress,
       mark_as_sold: markAsSold,
       copies: printReceipt ? copies : 0,
       timestamp: new Date()
