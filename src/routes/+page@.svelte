@@ -13,19 +13,25 @@
 
     import { BACKEND_URL } from './conf';
     import type { Product } from '@/models/product';
-    import type { PrintRequest } from '@/types';
+    import type { PrintOptions, PrintRequest } from '@/types';
     import RecallModal from './components/modals/RecallModal.svelte';
+    import SalesList from './components/SalesList.svelte';
+    import type { Sales } from '@/models/sales';
+  import ProductsList from './components/ProductsList.svelte';
 
     
     // Print Request Variables
-    let copies = 1;
-    let printReceipt = true;
-    let customerName = "";
-    let markAsSold = true;
-    let showEmailInput = false;
-    let emailAddress = "";
+    let printOptions: PrintOptions = {
+        copies: 1,
+        printReceipt: true,
+        customerName: "",
+        markAsSold: true,
+        showEmailInput: false,
+        emailAddress: ""
+    };
 
     let products: Product[] = [];
+    let sales: Sales[] | null = null;
     let selectedProducts: Product[] = [];
     let searchTerm = '';
     let suspendedPrintRequests: PrintRequest[] = [];
@@ -36,6 +42,10 @@
     let showRecallModal = false;
     let editedProduct: Product | null = null;
     let editActiveTab: 'products' | 'print' = 'products';
+
+    let showSales = false;
+    let showProductList = false;
+
 
     // Print modal state
     let showPrintModal = false;
@@ -104,12 +114,12 @@
             }
 
             const data: {
-                data: Product[];
+                products: Product[];
                 printer_connected: boolean;
             } = await response.json();
 
             printerConnected = data.printer_connected;
-            products = data.data;
+            products = data.products;
 
         } catch (err) {
             console.error(err);
@@ -153,17 +163,20 @@
 
     // ---------- filtering ----------
 
-    $: filteredProducts = sortedProducts.filter((p) =>
-        (showSoldItems || !p.sold) &&
-        (
-            p.item_description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.im_sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.sku_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.seller_name_address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.location.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-    );
+    $: filteredProducts = sortedProducts.filter((p) => {
+        const term = searchTerm.toLowerCase();
 
+        return (
+            (showSoldItems || !p.sold) &&
+            (
+                (p.item_description ?? "").toLowerCase().includes(term) ||
+                (p.im_sku ?? "").toLowerCase().includes(term) ||
+                (p.sku_no ?? "").toLowerCase().includes(term) ||
+                (p.seller_name_address ?? "").toLowerCase().includes(term) ||
+                (p.location ?? "").toLowerCase().includes(term)
+            )
+        );
+    });
     // ---------- selection ----------
 
     function toggleProduct(product: Product): void {
@@ -248,50 +261,72 @@
         <!-- Main Content -->
         {:else}
 
-            <!-- Controls -->
-            <SearchBar bind:showRecallModal={showRecallModal} bind:suspendedPrintRequests={suspendedPrintRequests} bind:printerConnected={printerConnected} bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
-
-            <!-- Stats Summary -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white rounded-xl shadow p-5">
-                    <div class="text-gray-500 flex items-center">
-                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-                        </svg>
-                        <span class="font-medium">Total Items</span>
-                    </div>
-                    <div class="text-3xl text-black font-bold mt-2">{products.length}</div>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow p-5">
-                    <div class="text-gray-500 flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span class="font-medium">Available</span>
-                    </div>
-                    <div class="text-3xl font-bold mt-2 text-black">{products.filter(p => !p.sold).length}</div>
-                </div>
-                
-                <div class="bg-white rounded-xl shadow p-5">
-                    <div class="text-gray-500 flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span class="font-medium">Sold</span>
-                    </div>
-                    <div class="text-3xl font-bold mt-2 text-black">{products.filter(p => p.sold).length}</div>
-                </div>
+        
+        {#if showSales} 
+            <div class="mt-8">
+                <SalesList bind:printOptions={printOptions} bind:sales={sales} bind:showSales={showSales} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
             </div>
+            {:else if showProductList}
+                <ProductsList bind:printOptions={printOptions} bind:products={products} bind:show={showProductList} bind:selectedProducts={selectedProducts}/>
 
-            <!-- Products Grid -->
-            <Products 
-                bind:filteredProducts={filteredProducts}
-                bind:selectedProducts={selectedProducts} 
-                toggleProduct={toggleProduct} 
-                openEditModal={openEditModal} 
-                bind:showSoldItems={showSoldItems}
-            />
+            {:else}
+                <!-- Controls -->
+                <SearchBar bind:showRecallModal={showRecallModal} bind:suspendedPrintRequests={suspendedPrintRequests} bind:printerConnected={printerConnected} bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
+
+                <!-- Stats Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div on:click={()=>{showProductList = !showProductList}} class="bg-white rounded-xl shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-200 p-4 flex flex-col gap-3 cursor-pointer">
+                        <div class="text-gray-500 flex items-center">
+                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                            <span class="font-medium">Total Items</span>
+                        </div>
+                        <div class="text-3xl text-black font-bold mt-2">{products.length}</div>
+                    </div>
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div on:click={()=> {showSales = !showSales}} class="bg-white rounded-xl shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-200 p-4 flex flex-col gap-3 cursor-pointer">
+                        <div class="text-gray-500 flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="font-medium">Total Sales</span>
+                        </div>
+                        <div class="text-3xl font-bold mt-2 text-black">{sales?.length}</div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-200 p-4 flex flex-col gap-3 cursor-pointer">
+                        <div class="text-gray-500 flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="font-medium">Available</span>
+                        </div>
+                        <div class="text-3xl font-bold mt-2 text-black">{products.filter(p => !p.sold).length}</div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-200 p-4 flex flex-col gap-3 cursor-pointer">
+                        <div class="text-gray-500 flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="font-medium">Sold</span>
+                        </div>
+                        <div class="text-3xl font-bold mt-2 text-black">{products.filter(p => p.sold).length}</div>
+                    </div>
+                </div>
+                <!-- Products Grid -->
+                <Products
+                    bind:filteredProducts={filteredProducts}
+                    bind:selectedProducts={selectedProducts} 
+                    toggleProduct={toggleProduct} 
+                    openEditModal={openEditModal} 
+                    bind:showSoldItems={showSoldItems}
+                />
+            {/if}
+
             
 
         {/if}
@@ -331,31 +366,24 @@
             
     {#if showPrintModal}
         <PrintModal
-            bind:suspendedPrintRequests={suspendedPrintRequests}
             bind:selectedProducts={selectedProducts}
+            bind:suspendedPrintRequests={suspendedPrintRequests}
+            
             bind:showPrintModal={showPrintModal}
             bind:products={products}
 
-            bind:copies={copies}
-            bind:printReceipt={printReceipt}
-            bind:customerName={customerName}
-            bind:markAsSold={markAsSold}
-            bind:showEmailInput={showEmailInput}
-            bind:emailAddress={emailAddress}
+            bind:printOptions={printOptions}
+
         />
     {/if}
     {#if showRecallModal}
-        <RecallModal
+    <RecallModal
             bind:suspendedPrintRequests={suspendedPrintRequests}
             bind:showPrintModal={showPrintModal}
             bind:showRecallModal={showRecallModal}
             bind:selectedProducts={selectedProducts}
-            bind:copies={copies}
-            bind:printReceipt={printReceipt}
-            bind:customerName={customerName}
-            bind:markAsSold={markAsSold}
-            bind:showEmailInput={showEmailInput}
-            bind:emailAddress={emailAddress}
+
+            bind:printOptions={printOptions}
         />
     {/if}
 </div>

@@ -1,18 +1,14 @@
 <script lang="ts">
   import type { Product } from "@/models/product";
-  import type { PrintRequest } from "@/types";
+  import type { PrintOptions, PrintRequest } from "@/types";
 
   export let suspendedPrintRequests: PrintRequest[] = [];
-  export let showPrintModal: boolean = false;
   export let showRecallModal: boolean = false;
-
+  
+  export let showPrintModal: boolean = false;
   export let selectedProducts: Product[];
-  export let copies: number;
-  export let printReceipt: boolean;
-  export let customerName: string;
-  export let markAsSold: boolean;
-  export let showEmailInput: boolean;
-  export let emailAddress: string;
+  export let printOptions: PrintOptions;
+
 
   let selectedSuspendedRequest: PrintRequest | null = null;
   let selectedIndex: number;
@@ -53,13 +49,13 @@
     // Your recall logic here – populate the print modal with this request's data
     // Example:
     selectedProducts = [...selectedSuspendedRequest.products];
-    customerName = selectedSuspendedRequest.customer_name;
-    emailAddress = selectedSuspendedRequest.email_address;
-    if (emailAddress && emailAddress.length > 0) showEmailInput = true
-    markAsSold = selectedSuspendedRequest.mark_as_sold;
-    copies = selectedSuspendedRequest.copies;
+    printOptions.customerName = selectedSuspendedRequest.customer_name;
+    printOptions.emailAddress = selectedSuspendedRequest.email_address;
+    if (printOptions.emailAddress && printOptions.emailAddress.length > 0) printOptions.showEmailInput = true
+    printOptions.markAsSold = selectedSuspendedRequest.mark_as_sold;
+    printOptions.copies = selectedSuspendedRequest.copies;
 
-    printReceipt = true ? copies > 0 : false;
+    printOptions.printReceipt = true ? printOptions.copies > 0 : false;
 
     removeSuspendedSale(selectedIndex);
     showRecallModal = false;

@@ -18,3 +18,12 @@ export type PrintRequest = {
   copies: number;
   timestamp: Date;
 };
+
+export type PrintOptions = {
+  copies: number;
+  printReceipt: boolean;
+  customerName: string;
+  markAsSold: boolean;
+  showEmailInput: boolean;
+  emailAddress: string;
+};
