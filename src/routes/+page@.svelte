@@ -17,7 +17,7 @@
     import RecallModal from './components/modals/RecallModal.svelte';
     import SalesList from './components/SalesList.svelte';
     import type { Sales } from '@/models/sales';
-  import ProductsList from './components/ProductsList.svelte';
+    import ProductsList from './components/ProductsList.svelte';
 
     
     // Print Request Variables
@@ -267,7 +267,7 @@
                 <SalesList bind:printOptions={printOptions} bind:sales={sales} bind:showSales={showSales} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
             </div>
             {:else if showProductList}
-                <ProductsList fetchProducts={fetchProducts} bind:printOptions={printOptions} bind:products={products} bind:show={showProductList} bind:selectedProducts={selectedProducts}/>
+                <ProductsList bind:printOptions={printOptions} bind:products={products} bind:show={showProductList} bind:selectedProducts={selectedProducts}/>
 
             {:else}
                 <!-- Controls -->

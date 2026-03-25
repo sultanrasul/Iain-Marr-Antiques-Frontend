@@ -24,7 +24,7 @@
   // Filter state
   let fromDate = '';
   let toDate = '';
-  let searchField: 'customer' | 'orderId' = 'customer';
+  let searchField: 'customer' | 'orderId' = 'orderId';
   let searchText = '';
   let minItems = 0;
   let minAmount = 0;
@@ -79,17 +79,20 @@
   })();
 
   async function fetchSales() {
-    if (sales) return;
+    let url = `${BACKEND_URL}/stock/get-sales?`;
+
+    if (fromDate) url += `date_from=${fromDate}&`;
+    if (toDate) url += `date_to=${toDate}&`;
+    if (searchField === 'orderId' && searchText) url += `order_id=${searchText}&`;
+    if (searchField === 'customer' && searchText) url += `customer_name=${searchText}&`;
+    if (minItems) url += `min_items=${minItems}&`;
+    if (minAmount) url += `min_price=${minAmount}&`;
+
     try {
       isLoading = true;
       error = null;
-
-      const response = await fetch(`${BACKEND_URL}/stock/get-sales`, {
-        headers: { Accept: 'application/json' }
-      });
-
-      if (!response.ok) throw new Error(`Failed to load products (${response.status})`);
-
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Failed to load sales (${response.status})`);
       sales = await response.json();
     } catch (err) {
       console.error(err);
@@ -141,29 +144,6 @@
   }
 
 
-  async function applyFilters() {
-    let url = `${BACKEND_URL}/stock/get-sales?`;
-
-    if (fromDate) url += `date_from=${fromDate}&`;
-    if (toDate) url += `date_to=${toDate}&`;
-    if (searchField === 'orderId' && searchText) url += `order_id=${searchText}&`;
-    if (searchField === 'customer' && searchText) url += `customer_name=${searchText}&`;
-    if (minItems) url += `min_items=${minItems}&`;
-    if (minAmount) url += `min_price=${minAmount}&`;
-
-    try {
-      isLoading = true;
-      error = null;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Failed to load sales (${response.status})`);
-      sales = await response.json();
-    } catch (err) {
-      console.error(err);
-      error = err instanceof Error ? err.message : 'Unknown error';
-    } finally {
-      isLoading = false;
-    }
-  }
 </script>
 
 {#if selectedSale}
@@ -247,7 +227,7 @@
     </div>
 
     <!-- Filter Bar – with embedded search dropdown and Apply button -->
-    <div class="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200 shadow-sm">
+    <form on:submit|preventDefault={fetchSales} class="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200 shadow-sm">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4">
         <!-- Date From -->
         <div>
@@ -287,8 +267,8 @@
               bind:value={searchField}
               class="rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-700 text-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="customer">Customer</option>
               <option value="orderId">Order ID</option>
+              <option value="customer">Customer</option>
             </select>
             <input
               type="text"
@@ -342,7 +322,7 @@
         <!-- Apply Button Column (auto width) -->
         <div class="flex items-end">
           <button
-            on:click={applyFilters}
+            on:click={fetchSales}
             class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4 py-2 flex items-center justify-center gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             title="Apply filters"
           >
@@ -351,7 +331,7 @@
           </button>
         </div>
       </div>
-    </div>
+    </form>
 
     <!-- Sales table – clean, readable, clickable rows -->
     <div class="overflow-x-auto rounded-lg border border-gray-200">

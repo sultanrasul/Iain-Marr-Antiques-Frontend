@@ -1,8 +1,6 @@
-<!-- SalesList.svelte -->
+<!-- ProductsList.svelte -->
 <script lang="ts">
-  import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter, Eye } from 'lucide-svelte';
-  import type { Sales } from '@/models/sales';
-  import SaleInfo from './SaleInfo.svelte';
+  import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter, Eye, ArrowUpDown } from 'lucide-svelte';
   import { BACKEND_URL } from '../conf';
   import { onMount } from 'svelte';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -17,22 +15,17 @@
   export let printOptions: PrintOptions;
   let isLoading = false;
   let error: string | null;
-  export let fetchProducts: () => Promise<void>;
 
   let selectedProductForDetails: Product | null;   // null = modal closed, else the product object
 
-
-  let selectedSale: Sales | null = null;
-  let sortBy: 'date' | 'customer' | 'amount' | 'items' = 'date';
-  let sortOrder: 'asc' | 'desc' = 'desc';
+  let sortField: 'sku_no' | 'im_sku' | 'description' | 'quantity' | 'selling_price' | 'purchase_price' = 'sku_no';
+  let sortOrder: 'asc' | 'desc' = 'asc';
 
   // Filter state
-  let fromDate = '';
-  let toDate = '';
-  let searchField: 'customer' | 'orderId' = 'customer';
-  let searchText = '';
-  let minItems = 0;
-  let minAmount = 0;
+  let skuText: string = ''; // text input for SKU
+  let itemDescription = '';
+  let minSellingPrice: number;
+  let minPurchasePrice: number;
 
   // Pagination
   let currentPage = 1;
@@ -41,7 +34,7 @@
 
   // Pagination based on filtered sales
   $: totalPages = Math.ceil(products?.length / itemsPerPage);
-  $: paginatedSales = products?.slice(
+  $: paginated = products?.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -78,28 +71,40 @@
     return rangeWithDots;
   })();
 
-//   async function fetchSales() {
-//     if (sales) return;
-//     try {
-//       isLoading = true;
-//       error = null;
+  async function fetchProducts() {
+    let url = `${BACKEND_URL}/stock/get-stock?`;
 
-//       const response = await fetch(`${BACKEND_URL}/stock/get-sales`, {
-//         headers: { Accept: 'application/json' }
-//       });
+    if (skuText) url += `sku_text=${encodeURIComponent(skuText)}&`;
+    if (itemDescription) url += `description=${encodeURIComponent(itemDescription)}&`;
+    if (minSellingPrice) url += `min_selling_price=${minSellingPrice}&`;
+    if (minPurchasePrice) url += `min_purchase_price=${minPurchasePrice}&`;
 
-//       if (!response.ok) throw new Error(`Failed to load products (${response.status})`);
+    // Add sorting
+    if (sortField) url += `sort_field=${sortField}&sort_order=${sortOrder}&`;
 
-//       sales = await response.json();
-//     } catch (err) {
-//       console.error(err);
-//       error = err instanceof Error ? err.message : 'Unknown error';
-//     } finally {
-//       isLoading = false;
-//     }
-//   }
+    try {
+      isLoading = true;
+      error = null;
 
-//   onMount(fetchSales);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Failed to load products (${response.status})`);
+
+      const data: {
+          products: Product[];
+          printer_connected: boolean;
+      } = await response.json();
+      products = data.products;
+
+    } catch (err) {
+      console.error(err);
+      error = err instanceof Error ? err.message : 'Unknown error';
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // Automatically fetch products when the component mounts
+  onMount(fetchProducts);
 
   function goToPage(page: number) {
     if (page >= 1 && page <= totalPages) {
@@ -111,61 +116,35 @@
     }
   }
 
-  function selectSale(sale: Sales) {
-    selectedSale = sale;
-  }
-
-  function closeSaleDetail() {
-    selectedSale = null;
-  }
-
-  // Formatting helpers
-  function formatDate(date: Date | string): string {
-    if (!date) return '—';
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-  }
-
-  function formatCurrency(value: number): string {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP'
-    }).format(value);
-  }
-
-  // test
   // Helper: check if a product is selected (using sku_no as unique identifier)
   function isSelected(product: Product): boolean {
     return selectedProducts.some(p => p.sku_no === product.sku_no);
   }
 
-  // Toggle selection: add or remove the whole product object
+  // Toggle selection: add or remove a single product
   function toggleSelect(product: Product): void {
-    if (isSelected(product)) {
-      // Remove product – filter out by sku_no
-      selectedProducts = selectedProducts.filter(p => p.sku_no !== product.sku_no);
-    } else {
-      // Add the whole product (or a subset if you prefer, but must match Product interface)
-      selectedProducts = [...selectedProducts, product];
-    }
+      const productCopy: Product = { ...product, quantity: 1 };
+
+      if (selectedProducts.some((p) => p.sku_no === product.sku_no)) {
+          // Remove product if already selected
+          selectedProducts = selectedProducts.filter(
+              (p) => p.sku_no !== product.sku_no
+          );
+      } else {
+          // Add product copy with quantity = 1
+          selectedProducts = [...selectedProducts, productCopy];
+      }
   }
 
   // Select/deselect all products on the current page
   function toggleSelectAll(): void {
-    if (selectedProducts.length === paginatedSales.length) {
-      // Deselect all if all are already selected
-      selectedProducts = [];
-    } else {
-      // Add all products from the current page (full objects)
-      selectedProducts = [...paginatedSales];
-    }
+      if (selectedProducts.length === paginated.length) {
+          // Deselect all if all are already selected
+          selectedProducts = [];
+      } else {
+          // Add all products from current page, each with quantity = 1
+          selectedProducts = paginated.map((p) => ({ ...p, quantity: 1 }));
+      }
   }
 
   // Remove a single product from the selected list (by sku_no)
@@ -174,6 +153,23 @@
   }
 
 
+
+
+  function applyFilters(event: SubmitEvent & { currentTarget: EventTarget & HTMLFormElement; }) {
+    throw new Error('Function not implemented.');
+  }
+
+
+  function sortBy(field: typeof sortField) {
+    if (sortField === field) {
+      // Toggle between asc/desc if same column
+      sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortField = field;
+      sortOrder = 'asc'; // default to ascending on new column
+    }
+    fetchProducts();
+  }
 </script>
 
 {#if selectedProductForDetails}
@@ -184,7 +180,7 @@
         <button
           on:click={()=> {selectedProductForDetails=null}}
           class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
-          title="Back to sales list"
+          title="Back to products list"
         >
           <ArrowLeft class="w-5 h-5 text-gray-600" />
         </button>
@@ -194,15 +190,14 @@
         </div>
       </div>
       <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-        10 total sales
+        {products.length} total products
       </span>
     </div>
     <ProductInfo fetchProducts={fetchProducts} bind:product={selectedProductForDetails} />
   </div>
 
 {:else}
-  <!-- Sales List View -->
-  <!-- Sales List View - Redesigned -->
+<!-- Products List View -->
   <div class="bg-white rounded-xl shadow p-6" id="salesHistory">
     <!-- Header with back button and summary -->
     <div class="flex items-center justify-between mb-6">
@@ -216,111 +211,81 @@
         </button>
         <div class="flex items-center space-x-2">
           <PoundSterling class="w-6 h-6 text-[#011993]" />
-          <h2 class="text-2xl font-semibold text-gray-800">Sales History</h2>
+          <h2 class="text-2xl font-semibold text-gray-800">Products</h2>
         </div>
       </div>
       <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-        1 total sales
+        {products.length} total products
       </span>
     </div>
 
 
-    <!-- Filter Bar – with embedded search dropdown and Apply button -->
-    <div class="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200 shadow-sm">
+    <!-- Product Filter Bar -->
+    <form on:submit|preventDefault={fetchProducts} class="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200 shadow-sm text-black">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4">
-        <!-- Date From -->
+
+        <!-- SKU Filter (single input for sku_no / im_sku) -->
         <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">From</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1">SKU</label>
+          <input
+            type="text"
+            bind:value={skuText}
+            placeholder="SKU No or IM SKU"
+            class="text-black block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Item Description -->
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Item Description</label>
+          <input
+            type="text"
+            bind:value={itemDescription}
+            placeholder="Item description"
+            class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Selling Price -->
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Selling Price (Min)</label>
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Calendar class="h-4 w-4 text-gray-500" />
+              <PoundSterling class="h-4 w-4 text-gray-500" />
             </div>
             <input
-              type="date"
-              bind:value={fromDate}
+              type="number"
+              min="0"
+              step="0.01"
+              bind:value={minSellingPrice}
+              placeholder="0.00"
               class="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             />
           </div>
         </div>
 
-        <!-- Date To -->
+        <!-- Purchase Price -->
         <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">To</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Purchase Price (Min)</label>
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Calendar class="h-4 w-4 text-gray-500" />
+              <PoundSterling class="h-4 w-4 text-gray-500" />
             </div>
             <input
-              type="date"
-              bind:value={toDate}
+              type="number"
+              min="0"
+              step="0.01"
+              bind:value={minPurchasePrice}
+              placeholder="0.00"
               class="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             />
           </div>
         </div>
 
-        <!-- Search with embedded dropdown -->
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Search</label>
-          <div class="flex rounded-md shadow-sm">
-            <select
-              bind:value={searchField}
-              class="rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-700 text-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="customer">Customer</option>
-              <option value="orderId">Order ID</option>
-            </select>
-            <input
-              type="text"
-              bind:value={searchText}
-              placeholder={searchField === 'customer' ? 'Customer name' : 'Order ID'}
-              class="text-black block w-full rounded-r-md border border-gray-300 px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
-
-        <!-- Combined Min Items & Min Amount -->
-        <div>
-          <div class="flex gap-2">
-            <!-- Min Items -->
-            <div class="flex-1">
-              <label class="block text-xs font-medium text-gray-700 mb-1">Items</label>
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Package class="h-4 w-4 text-gray-500" />
-                </div>
-                <input
-                  type="number"
-                  min="0"
-                  bind:value={minItems}
-                  placeholder="0"
-                  class="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            <!-- Min Amount -->
-            <div class="flex-1">
-              <label class="block text-xs font-medium text-gray-700 mb-1">Amount</label>
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <PoundSterling class="h-4 w-4 text-gray-500" />
-                </div>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  bind:value={minAmount}
-                  placeholder="0.00"
-                  class="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Apply Button Column (auto width) -->
+        <!-- Apply Button -->
         <div class="flex items-end">
           <button
+            type="submit"
             class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4 py-2 flex items-center justify-center gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             title="Apply filters"
           >
@@ -328,84 +293,119 @@
             <span class="hidden sm:inline">Apply</span>
           </button>
         </div>
+
       </div>
-    </div>
+    </form>
 
 
-  <!-- Sales table – now with checkboxes -->
-  <div class="overflow-x-auto rounded-lg border border-gray-200">
-    <table class="min-w-full divide-y divide-gray-200">
-      <thead class="bg-gray-50">
-        <tr>
-          <!-- Select All checkbox -->
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            <input
-              type="checkbox"
-              checked={selectedProducts.length === paginatedSales.length}
-              on:change={toggleSelectAll}
-              class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-          </th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IM SKU</th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selling Price</th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Price</th>
-          <th scope="col" class="px-6 py-3 text-center text-xs font-medium rounded-l bg-gray-200 text-gray-500 uppercase tracking-wider">View</th>
-        </tr>
-      </thead>
-      <tbody class="bg-white divide-y divide-gray-200">
-        {#each paginatedSales as product}
-          <tr class="hover:bg-gray-50 transition-colors cursor-pointer" class:bg-blue-50={isSelected(product)} on:click={() => toggleSelect(product)}>
-            <!-- Selection checkbox - stop propagation to prevent double toggle -->
-            <td class="px-6 py-4 whitespace-nowrap" on:click|stopPropagation>
-              <input
-                type="checkbox"
-                checked={isSelected(product)}
-                on:change={() => toggleSelect(product)}
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{product.sku_no || '—'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{product.im_sku || '—'}</td>
-            <td class="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs truncate" title={product.item_description}>
-              <div class="flex items-center">
-                <span class="capitalize">{product.item_description}</span>
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-              <div class="flex items-center">
-                <Package class="w-4 h-4 text-gray-400 mr-2" />
-                {product.quantity}
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600"> {product.selling_price}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">{product.purchase_price}</td>
-            <td class="px-6 py-4 text-center" on:click={() => selectedProductForDetails = product}>
-              <button
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm"
-                title="View full details"
-              >
-                <Eye class="w-4 h-4" />
-                <span>View</span>
-              </button>
-            </td>
-          </tr>
-        {:else}
+    <!-- Sales table – now with checkboxes -->
+    <div class="overflow-x-auto rounded-lg border border-gray-200">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
           <tr>
-            <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-              <div class="flex flex-col items-center">
-                <Package class="w-12 h-12 text-gray-300 mb-3" />
-                <p class="text-lg font-medium text-gray-700">No Products found</p>
-                <p class="text-sm text-gray-500">Try adjusting your filters</p>
+            <!-- Select All checkbox (not sortable) -->
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <input type="checkbox" checked={selectedProducts.length === paginated.length} on:change={toggleSelectAll} class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
+            </th>
+
+            <!-- Sortable columns -->
+            <th on:click={() => sortBy('sku_no')} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="sku_no">
+              <div class="flex items-center gap-1">
+                SKU
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
               </div>
-            </td>
+            </th>
+
+            <th on:click={() => sortBy('im_sku')} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="im_sku">
+              <div class="flex items-center gap-1">
+                IM SKU
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+              </div>
+            </th>
+
+            <th on:click={() => sortBy('description')} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="item_description">
+              <div class="flex items-center gap-1">
+                Description
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+              </div>
+            </th>
+
+            <th on:click={() => sortBy('quantity')} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="quantity">
+              <div class="flex items-center gap-1">
+                Quantity
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+              </div>
+            </th>
+
+            <th on:click={() => sortBy('selling_price')} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="selling_price">
+              <div class="flex items-center gap-1">
+                Selling Price
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+              </div>
+            </th>
+
+            <th on:click={() => sortBy('purchase_price')} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="purchase_price">
+              <div class="flex items-center gap-1">
+                Purchase Price
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+              </div>
+            </th>
+
+            <!-- View column (not sortable) -->
+            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">View</th>
           </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {#each paginated as product}
+            <tr class="hover:bg-gray-50 transition-colors cursor-pointer" class:hover:bg-blue-50={isSelected(product)} class:bg-blue-50={isSelected(product)} on:click={() => toggleSelect(product)}>
+              <!-- Selection checkbox - stop propagation to prevent double toggle -->
+              <td class="px-6 py-4 whitespace-nowrap" on:click|stopPropagation>
+                <input
+                  type="checkbox"
+                  checked={isSelected(product)}
+                  on:change={() => toggleSelect(product)}
+                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{product.sku_no || '—'}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{product.im_sku || '—'}</td>
+              <td class="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs truncate" title={product.item_description}>
+                <div class="flex items-center">
+                  <span class="capitalize">{product.item_description || '—'}</span>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                <div class="flex items-center">
+                  <Package class="w-4 h-4 text-gray-400 mr-2" />
+                  {product.quantity}
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600"> {product.selling_price}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">{product.purchase_price}</td>
+              <td class="px-6 py-4 text-center" on:click|stopPropagation={()=> {selectedProductForDetails = product}}>
+                <button
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm"
+                  title="View full details"
+                >
+                  <Eye class="w-4 h-4" />
+                  <span>View</span>
+                </button>
+              </td>
+            </tr>
+          {:else}
+            <tr>
+              <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                <div class="flex flex-col items-center">
+                  <Package class="w-12 h-12 text-gray-300 mb-3" />
+                  <p class="text-lg font-medium text-gray-700">No Products found</p>
+                  <p class="text-sm text-gray-500">Try adjusting your filters</p>
+                </div>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
 
   </div>
 
@@ -415,7 +415,7 @@
       <div class="text-sm text-gray-600">
         Showing {Math.min((currentPage - 1) * itemsPerPage + 1, products?.length)} 
         to {Math.min(currentPage * itemsPerPage, products?.length)} 
-        of {products?.length} sales
+        of {products?.length} products
       </div>
       
       <div class="flex items-center gap-1">
