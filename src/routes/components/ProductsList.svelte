@@ -1,6 +1,6 @@
 <!-- SalesList.svelte -->
 <script lang="ts">
-  import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter } from 'lucide-svelte';
+  import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter, Eye } from 'lucide-svelte';
   import type { Sales } from '@/models/sales';
   import SaleInfo from './SaleInfo.svelte';
   import { BACKEND_URL } from '../conf';
@@ -8,6 +8,8 @@
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import type { Product } from '@/models/product';
   import type { PrintOptions } from '@/types';
+  import ProductModal from './modals/ProductModal.svelte';
+  import ProductInfo from './modals/ProductInfo.svelte';
 
   export let selectedProducts: Product[];
   export let show: boolean = false;
@@ -15,6 +17,10 @@
   export let printOptions: PrintOptions;
   let isLoading = false;
   let error: string | null;
+  export let fetchProducts: () => Promise<void>;
+
+  let selectedProductForDetails: Product | null;   // null = modal closed, else the product object
+
 
   let selectedSale: Sales | null = null;
   let sortBy: 'date' | 'customer' | 'amount' | 'items' = 'date';
@@ -134,11 +140,65 @@
     }).format(value);
   }
 
+  // test
+  // Helper: check if a product is selected (using sku_no as unique identifier)
+  function isSelected(product: Product): boolean {
+    return selectedProducts.some(p => p.sku_no === product.sku_no);
+  }
+
+  // Toggle selection: add or remove the whole product object
+  function toggleSelect(product: Product): void {
+    if (isSelected(product)) {
+      // Remove product – filter out by sku_no
+      selectedProducts = selectedProducts.filter(p => p.sku_no !== product.sku_no);
+    } else {
+      // Add the whole product (or a subset if you prefer, but must match Product interface)
+      selectedProducts = [...selectedProducts, product];
+    }
+  }
+
+  // Select/deselect all products on the current page
+  function toggleSelectAll(): void {
+    if (selectedProducts.length === paginatedSales.length) {
+      // Deselect all if all are already selected
+      selectedProducts = [];
+    } else {
+      // Add all products from the current page (full objects)
+      selectedProducts = [...paginatedSales];
+    }
+  }
+
+  // Remove a single product from the selected list (by sku_no)
+  function removeSelected(product: Product): void {
+    selectedProducts = selectedProducts.filter(p => p.sku_no !== product.sku_no);
+  }
+
+
 </script>
 
-{#if selectedSale}
-  <!-- Sale Detail View -->
-
+{#if selectedProductForDetails}
+  <!-- Product Detail View -->
+  <div class="bg-white rounded-xl shadow p-6">
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-4">
+        <button
+          on:click={()=> {selectedProductForDetails=null}}
+          class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+          title="Back to sales list"
+        >
+          <ArrowLeft class="w-5 h-5 text-gray-600" />
+        </button>
+        <div class="flex items-center space-x-2">
+          <Receipt class="w-6 h-6 text-[#011993] invisible" />
+          <h2 class="text-2xl font-semibold text-gray-800">Order Details</h2>
+        </div>
+      </div>
+      <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+        10 total sales
+      </span>
+    </div>
+    <ProductInfo fetchProducts={fetchProducts} bind:product={selectedProductForDetails} />
+  </div>
 
 {:else}
   <!-- Sales List View -->
@@ -272,62 +332,80 @@
     </div>
 
 
-
-    <!-- Sales table – clean, readable, clickable rows -->
-    <div class="overflow-x-auto rounded-lg border border-gray-200">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IM SKU</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selling Price</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Price</th>
-            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Details</span></th>
+  <!-- Sales table – now with checkboxes -->
+  <div class="overflow-x-auto rounded-lg border border-gray-200">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <!-- Select All checkbox -->
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <input
+              type="checkbox"
+              checked={selectedProducts.length === paginatedSales.length}
+              on:change={toggleSelectAll}
+              class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IM SKU</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selling Price</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Price</th>
+          <th scope="col" class="px-6 py-3 text-center text-xs font-medium rounded-l bg-gray-200 text-gray-500 uppercase tracking-wider">View</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {#each paginatedSales as product}
+          <tr class="hover:bg-gray-50 transition-colors cursor-pointer" class:bg-blue-50={isSelected(product)} on:click={() => toggleSelect(product)}>
+            <!-- Selection checkbox - stop propagation to prevent double toggle -->
+            <td class="px-6 py-4 whitespace-nowrap" on:click|stopPropagation>
+              <input
+                type="checkbox"
+                checked={isSelected(product)}
+                on:change={() => toggleSelect(product)}
+                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{product.sku_no || '—'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{product.im_sku || '—'}</td>
+            <td class="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs truncate" title={product.item_description}>
+              <div class="flex items-center">
+                <span class="capitalize">{product.item_description}</span>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+              <div class="flex items-center">
+                <Package class="w-4 h-4 text-gray-400 mr-2" />
+                {product.quantity}
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600"> {product.selling_price}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">{product.purchase_price}</td>
+            <td class="px-6 py-4 text-center" on:click={() => selectedProductForDetails = product}>
+              <button
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm"
+                title="View full details"
+              >
+                <Eye class="w-4 h-4" />
+                <span>View</span>
+              </button>
+            </td>
           </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          {#each paginatedSales as product }
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <tr class="hover:bg-gray-50 cursor-pointer transition-colors group">
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{product.sku_no || '—'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{product.im_sku || '—'}</td>
-                <td class="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs truncate" title={product.item_description}>
-                    <div class="flex items-center">
-                        <span class="capitalize">{product.item_description}</span>
-                    </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    <div class="flex items-center">
-                    <Package class="w-4 h-4 text-gray-400 mr-2" />
-                    {product.quantity}
-                    </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
-                    {product.selling_price}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
-                    {product.purchase_price}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <ChevronRight class="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                </td>
-            </tr>
-          {:else}
-            <tr>
-              <td colspan="6" class="px-6 py-12 text-center text-gray-500">
-                <div class="flex flex-col items-center">
-                  <Package class="w-12 h-12 text-gray-300 mb-3" />
-                  <p class="text-lg font-medium text-gray-700">No Products found</p>
-                  <p class="text-sm text-gray-500">Try adjusting your filters</p>
-                </div>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+        {:else}
+          <tr>
+            <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+              <div class="flex flex-col items-center">
+                <Package class="w-12 h-12 text-gray-300 mb-3" />
+                <p class="text-lg font-medium text-gray-700">No Products found</p>
+                <p class="text-sm text-gray-500">Try adjusting your filters</p>
+              </div>
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
 
   </div>
 
