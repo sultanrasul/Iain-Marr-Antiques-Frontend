@@ -27,3 +27,18 @@ export type PrintOptions = {
   showEmailInput: boolean;
   emailAddress: string;
 };
+
+export type Stats = {
+    total_products: number;
+    total_orders: number;
+    total_sales_rows: number;
+    total_items_sold: number;
+    total_revenue: number;
+    unique_products_sold: number;
+};
+
+export type GetStockResponse = {
+    products: Product[];
+    printer_connected: boolean;
+    stats: Stats;
+};

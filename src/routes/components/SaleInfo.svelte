@@ -93,7 +93,7 @@
         <div class="flex flex-wrap gap-3">
           <div class="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full">
             <User class="w-4 h-4 text-gray-600" />
-            <span class="text-sm font-medium text-gray-700">{sale?.customer_name}</span>
+            <span class="text-sm font-medium text-gray-700">{sale?.customer_name || '—'} </span>
           </div>
           <div class="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full">
             <Calendar class="w-4 h-4 text-gray-600" />

@@ -1,6 +1,6 @@
 <!-- SalesList.svelte -->
 <script lang="ts">
-  import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter } from 'lucide-svelte';
+  import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter, ArrowUpDown } from 'lucide-svelte';
   import type { Sales } from '@/models/sales';
   import SaleInfo from './SaleInfo.svelte';
   import { BACKEND_URL } from '../conf';
@@ -18,8 +18,7 @@
   let error: string | null;
 
   let selectedSale: Sales | null = null;
-  let sortBy: 'date' | 'customer' | 'amount' | 'items' = 'date';
-  let sortOrder: 'asc' | 'desc' = 'desc';
+
 
   // Filter state
   let fromDate = '';
@@ -28,6 +27,9 @@
   let searchText = '';
   let minItems = 0;
   let minAmount = 0;
+
+  let sortField: 'date_sold' | 'order_id' | 'customer_name' | 'items_purchased' | 'total_amount' = 'order_id';
+  let sortOrder: 'asc' | 'desc' = 'asc';
 
   // Pagination
   let currentPage = 1;
@@ -40,8 +42,8 @@
   $: uniqueCustomers = new Set(sales?.map(s => s.customer_name) ?? []).size;
 
   // Pagination based on filtered sales
-  $: totalPages = Math.ceil(sales?.length / itemsPerPage);
-  $: paginatedSales = sales?.slice(
+  $: totalPages = Math.ceil((sales?.length ?? 0) / itemsPerPage);
+  $: paginated = sales?.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -87,6 +89,9 @@
     if (searchField === 'customer' && searchText) url += `customer_name=${searchText}&`;
     if (minItems) url += `min_items=${minItems}&`;
     if (minAmount) url += `min_price=${minAmount}&`;
+
+    // Add sorting
+    if (sortField) url += `sort_field=${sortField}&sort_order=${sortOrder}&`;
 
     try {
       isLoading = true;
@@ -141,6 +146,17 @@
       style: 'currency',
       currency: 'GBP'
     }).format(value);
+  }
+
+  function sortBy(field: typeof sortField) {
+    if (sortField === field) {
+      // Toggle between asc/desc if same column
+      sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortField = field;
+      sortOrder = 'asc'; // default to ascending on new column
+    }
+    fetchSales();
   }
 
 
@@ -336,7 +352,7 @@
     <!-- Sales table – clean, readable, clickable rows -->
     <div class="overflow-x-auto rounded-lg border border-gray-200">
       <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+        <!-- <thead class="bg-gray-50">
           <tr>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
@@ -345,9 +361,51 @@
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
             <th scope="col" class="relative px-6 py-3"><span class="sr-only">Details</span></th>
           </tr>
+        </thead> -->
+                <thead class="bg-gray-50">
+          <tr>
+
+            <!-- Sortable columns -->
+            <th on:click={() => sortBy("date_sold")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="sku_no">
+              <div class="flex items-center gap-1">
+                Date
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+              </div>
+            </th>
+
+            <th on:click={() => sortBy("order_id")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="im_sku">
+              <div class="flex items-center gap-1">
+                Order ID
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+              </div>
+            </th>
+
+            <th on:click={() => sortBy("customer_name")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="item_description">
+              <div class="flex items-center gap-1">
+                Customer
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+              </div>
+            </th>
+
+            <th on:click={() => sortBy("items_purchased")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="quantity">
+              <div class="flex items-center gap-1">
+                Items
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+              </div>
+            </th>
+
+            <th on:click={() => sortBy("total_amount")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="selling_price">
+              <div class="flex items-center gap-1">
+                Total
+                <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
+              </div>
+            </th>
+            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Details</span></th>
+
+          </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          {#each paginatedSales as sale (sale.order_id)}
+          {#each paginated as sale (sale.order_id)}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <tr
               on:click={() => selectSale(sale)}
@@ -365,7 +423,7 @@
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 <div class="flex items-center">
                   <User class="w-4 h-4 text-gray-400 mr-2" />
-                  {sale.customer_name}
+                  {sale.customer_name || '—'}
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">

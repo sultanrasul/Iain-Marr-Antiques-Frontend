@@ -357,7 +357,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           {#each paginated as product}
-            <tr class="hover:bg-gray-50 transition-colors cursor-pointer" class:hover:bg-blue-50={isSelected(product)} class:bg-blue-50={isSelected(product)} on:click={() => toggleSelect(product)}>
+            <tr class:hover:bg-blue-50={isSelected(product)} class:bg-blue-50={isSelected(product)} class="hover:bg-gray-50 transition-colors cursor-pointer" on:click={() => toggleSelect(product)}>
               <!-- Selection checkbox - stop propagation to prevent double toggle -->
               <td class="px-6 py-4 whitespace-nowrap" on:click|stopPropagation>
                 <input

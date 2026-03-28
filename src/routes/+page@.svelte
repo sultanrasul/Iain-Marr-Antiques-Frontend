@@ -13,7 +13,7 @@
 
     import { BACKEND_URL } from './conf';
     import type { Product } from '@/models/product';
-    import type { PrintOptions, PrintRequest } from '@/types';
+    import type { PrintOptions, PrintRequest, GetStockResponse, Stats } from '@/types';
     import RecallModal from './components/modals/RecallModal.svelte';
     import SalesList from './components/SalesList.svelte';
     import type { Sales } from '@/models/sales';
@@ -35,6 +35,7 @@
     let selectedProducts: Product[] = [];
     let searchTerm = '';
     let suspendedPrintRequests: PrintRequest[] = [];
+    let stats: Stats;
 
     // Edit modal state
     let showEditProductModal = false;
@@ -113,13 +114,11 @@
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const data: {
-                products: Product[];
-                printer_connected: boolean;
-            } = await response.json();
+            const data: GetStockResponse = await response.json();
 
             printerConnected = data.printer_connected;
             products = data.products;
+            stats = data.stats;
 
         } catch (err) {
             console.error(err);
@@ -284,7 +283,7 @@
                             </svg>
                             <span class="font-medium">Total Items</span>
                         </div>
-                        <div class="text-3xl text-black font-bold mt-2">{products.length}</div>
+                        <div class="text-3xl text-black font-bold mt-2">{stats?.total_products}</div>
                     </div>
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -295,7 +294,7 @@
                             </svg>
                             <span class="font-medium">Total Sales</span>
                         </div>
-                        <div class="text-3xl font-bold mt-2 text-black">{sales?.length}</div>
+                        <div class="text-3xl font-bold mt-2 text-black">{stats?.total_orders}</div>
                     </div>
                     <div class="bg-white rounded-xl shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-200 p-4 flex flex-col gap-3 cursor-pointer">
                         <div class="text-gray-500 flex items-center">
@@ -314,7 +313,7 @@
                             </svg>
                             <span class="font-medium">Sold</span>
                         </div>
-                        <div class="text-3xl font-bold mt-2 text-black">{products.filter(p => p.sold).length}</div>
+                        <div class="text-3xl font-bold mt-2 text-black">{stats?.total_items_sold}</div>
                     </div>
                 </div>
                 <!-- Products Grid -->
