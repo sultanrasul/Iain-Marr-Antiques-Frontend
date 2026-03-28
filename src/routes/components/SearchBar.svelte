@@ -1,15 +1,18 @@
 <script lang="ts">
-  import { FolderSync, Printer, PlusCircle, Settings, Wifi, WifiOff, Power, RefreshCw, Database, FileText, Download, Upload, Cloud, Loader2, Check, AlertCircle } from "lucide-svelte";
+  import { FolderSync, Printer, PlusCircle, Settings, Wifi, WifiOff, Power, RefreshCw, Database, FileText, Download, Upload, Cloud, Loader2, Check, AlertCircle, Edit, X } from "lucide-svelte";
 
   import { BACKEND_URL } from "../conf";
   import type { Product } from "@/models/product";
   import type { PrintRequest } from "@/types";
+  import type { Settings as SettingsType } from "@/models/settings";
 
   // ---------- props ----------
 
   export let searchTerm: string = "";
 
   export let fetchProducts: () => Promise<void>;
+
+  export let settings: SettingsType;
 
   export let showPrintModal: boolean;
   export let showAddProductModal: boolean;
@@ -32,6 +35,11 @@
 
   let showSettingsModal = false;
   let isCheckingPrinter = false;
+
+    // Sheet ID editing state
+  let isEditingSheetId = false;
+  let isSavingSheetId = false;
+  let editableSheetId = '';
 
   // ---------- printer ----------
 
@@ -89,17 +97,24 @@
     }
   }
 
-  let databaseFileName: string = 'pos_database.db';
-  let googleSheetId: string = '';
-  let syncResults: [[number, string][], [number, string][]] = [[], []];
+  // let databaseFileName: string = 'pos_database.db';
+  // let googleSheetId: string = '';
+
+  let syncResults: [[number, string][], [number, string][]];
   let isSyncing: boolean = false;
 
   let selectedFile = null;
   let newFileName = "";
 
   // Triggered when the user selects a file
-  async function uploadDatabase(event: { target: { files: any[]; }; }) {
-    selectedFile = event.target.files[0];
+  async function uploadDatabase(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const files = input.files;
+
+    if (!files || files.length === 0) return;
+
+    const selectedFile = files[0];
+    
     if (!selectedFile) return;
 
     const formData = new FormData();
@@ -141,6 +156,64 @@
       isSyncing = false;
     }
   }
+
+
+  // Function to save the new sheet ID
+  async function saveSheetId() {
+    if (!editableSheetId || editableSheetId.trim() === '') {
+      // Optionally show error
+      alert('Please enter a valid Google Sheets ID');
+      return;
+    }
+    
+    try {
+      isSavingSheetId = true;
+      
+      // Make fetch request to update the sheet ID
+      const response = await fetch(`${BACKEND_URL}/system/update-sheets-id`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ new_id: editableSheetId.trim() }) // Changed from sheetId to new_id
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update Sheet ID');
+      }
+      
+      const result = await response.json();
+      
+      // Update the settings object
+      settings.GOOGLE_SHEETS_ID = editableSheetId.trim();
+      
+      // Exit edit mode
+      isEditingSheetId = false;
+      
+      // Optional: Show success message
+      console.log('Sheet ID updated successfully');
+      
+    } catch (error) {
+      console.error('Error updating sheet ID:', error);
+      alert('Failed to update Google Sheets ID. Please try again.');
+    } finally {
+      isSavingSheetId = false;
+    }
+  }
+
+  // Function to cancel editing
+  function cancelEditSheetId() {
+    isEditingSheetId = false;
+    editableSheetId = '';
+  }
+
+ // Function to start editing (populate editable with current value)
+  function startEditSheetId() {
+    editableSheetId = settings.GOOGLE_SHEETS_ID || '';
+    isEditingSheetId = true;
+  }
+
+
 </script>
 
 <div class="bg-white rounded-xl shadow-lg p-4 mb-2" id="searchBar">
@@ -339,7 +412,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white rounded-lg">
               <div class="flex items-center gap-2 text-sm text-gray-600">
                 <FileText class="w-4 h-4" />
-                <span class="font-mono">{databaseFileName || 'pos_database.db'}</span>
+                <span class="font-mono">{settings.DATABASE_PATH || 'pos_database.db'}</span>
               </div>
               <div class="flex gap-2">
                 <a
@@ -362,39 +435,76 @@
 
         <!-- Google Sheets Section -->
         <div class="bg-gray-50 rounded-xl p-5">
-          <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Cloud class="w-5 h-5" />
-            Google Sheets Integration
-          </h3>
-          <div class="space-y-4">
-            <!-- Sheets ID Input -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Sheet ID</label>
+          <!-- Simpler version with inline editing -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-sm font-medium text-gray-700">Sheet ID</label>
+              {#if !isEditingSheetId}
+              <button
+                on:click={startEditSheetId}
+                class="text-black flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                title="Edit product"
+              >
+                <Edit class="w-4 h-4" />
+                <span>Edit</span>
+              </button>
+              {:else}
+                <div class="flex gap-1">
+                <button on:click={saveSheetId} disabled={isSavingSheetId} class="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {#if isSavingSheetId}
+                        <Loader2 class="w-4 h-4 animate-spin" />
+                        <span>Saving...</span>
+                    {:else}
+                        <Check class="w-4 h-4" />
+                        <span>Save</span>
+                    {/if}
+                </button>
+                  <span class="text-gray-300">|</span>
+                  <button
+                    on:click={cancelEditSheetId}
+                    class="text-black flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    title="Cancel editing"
+                  >
+                    <X class="w-4 h-4" />
+                    <span>Cancel</span>
+                  </button>
+                </div>
+              {/if}
+            </div>
+            
+            {#if isEditingSheetId}
               <input
                 type="text"
-                bind:value={googleSheetId}
+                bind:value={editableSheetId}
                 placeholder="1ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="text-black w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autofocus
               />
-              <p class="text-xs text-gray-500 mt-1">The ID from your Google Sheets URL (the long string between /d/ and /edit).</p>
-            </div>
-
-            <!-- Sync Button -->
-            <button
-              on:click={syncGoogleSheets}
-              disabled={isSyncing}
-              class="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {#if isSyncing}
-                <Loader2 class="w-4 h-4 mr-2 animate-spin" />
-                Syncing...
-              {:else}
-                <RefreshCw class="w-4 h-4 mr-2" />
-                Sync Data from Google Sheets
-              {/if}
-            </button>
+            {:else}
+              <input
+                type="text"
+                readonly
+                value={settings.GOOGLE_SHEETS_ID || 'Not configured'}
+                class="text-black w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm cursor-default font-mono"
+              />
+            {/if}
+            <p class="text-xs text-gray-500 mt-1">The ID from your Google Sheets URL (the long string between /d/ and /edit).</p>
           </div>
         </div>
+        <!-- Sync Button -->
+        <button
+          on:click={syncGoogleSheets}
+          disabled={isSyncing}
+          class="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {#if isSyncing}
+            <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+            Syncing...
+          {:else}
+            <RefreshCw class="w-4 h-4 mr-2" />
+            Sync Data from Google Sheets
+          {/if}
+        </button>
 
         <!-- Sync Results Section (only shown when sync has been performed) -->
         {#if syncResults}

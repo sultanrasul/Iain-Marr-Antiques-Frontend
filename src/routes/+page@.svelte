@@ -18,6 +18,7 @@
     import SalesList from './components/SalesList.svelte';
     import type { Sales } from '@/models/sales';
     import ProductsList from './components/ProductsList.svelte';
+    import type { Settings } from '@/models/settings';
 
     
     // Print Request Variables
@@ -29,6 +30,9 @@
         showEmailInput: false,
         emailAddress: ""
     };
+
+    // Define your object using the type
+    let settings: Settings;
 
     let products: Product[] = [];
     let sales: Sales[] | null = null;
@@ -119,6 +123,7 @@
             printerConnected = data.printer_connected;
             products = data.products;
             stats = data.stats;
+            settings = data.settings;
 
         } catch (err) {
             console.error(err);
@@ -270,7 +275,7 @@
 
             {:else}
                 <!-- Controls -->
-                <SearchBar bind:showRecallModal={showRecallModal} bind:suspendedPrintRequests={suspendedPrintRequests} bind:printerConnected={printerConnected} bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
+                <SearchBar bind:settings={settings} bind:showRecallModal={showRecallModal} bind:suspendedPrintRequests={suspendedPrintRequests} bind:printerConnected={printerConnected} bind:sortConfig={sortConfig} handleSort={handleSort} bind:sortOptions={sortOptions} fetchProducts={fetchProducts} bind:showAddProductModal={showAddProductModal} bind:searchTerm={searchTerm} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
 
                 <!-- Stats Summary -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

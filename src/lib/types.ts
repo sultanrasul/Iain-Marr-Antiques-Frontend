@@ -1,4 +1,5 @@
 import type { Product } from "./models/product"
+import type { Settings } from "./models/settings"
 
 export type Categories = 'sveltekit' | 'svelte'
 
@@ -41,4 +42,5 @@ export type GetStockResponse = {
     products: Product[];
     printer_connected: boolean;
     stats: Stats;
+    settings: Settings;
 };
