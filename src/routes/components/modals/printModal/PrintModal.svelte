@@ -1,3 +1,4 @@
+<!-- PrintModal.svelte -->
 <script lang="ts">
   import type { Product } from "@/models/product";
   import { BACKEND_URL } from "../../../conf";
@@ -18,6 +19,14 @@
   let emailError = "";
   let paymentType = "";
 
+  let printProducts: Product[] = [];
+
+
+  $: printProducts = selectedProducts.map(p => ({
+      ...p,
+      quantity: 1
+    }));
+  
 
   // Email validation function
   function validateEmail(email: string) {
@@ -53,7 +62,7 @@
     isLoading = true;
     try {
       const requestBody: PrintRequest = {
-        products: selectedProducts,
+        products: printProducts,
         customer_name: printOptions.customerName,
         email_address: printOptions.emailAddress,
         mark_as_sold: printOptions.markAsSold,
@@ -118,7 +127,7 @@
 
   function suspendSale(){
     const printRequest: PrintRequest = {
-      products: selectedProducts,
+      products: printProducts,
       customer_name: printOptions.customerName,
       email_address: !printOptions.showEmailInput ? "" : printOptions.emailAddress,
       mark_as_sold: printOptions.markAsSold,
@@ -187,7 +196,7 @@
     emailError = "";
   }
 
-  $: totalPrice = selectedProducts.reduce(
+  $: totalPrice = printProducts.reduce(
     (total, product) => total + product.selling_price * product.quantity,
     0
   );
@@ -374,14 +383,14 @@
       
       <div>
         <div class="mb-4">
-          <p class="text-gray-600">You're about to process {selectedProducts.length} products.</p>
-          {#if selectedProducts.length > 0}
+          <p class="text-gray-600">You're about to process {printProducts.length} products.</p>
+          {#if printProducts.length > 0}
             <p class="text-sm text-gray-500 mt-1">Click the X button to remove items from the list</p>
           {/if}
         </div>
         
         <div class="space-y-3">
-          {#each selectedProducts as product}
+          {#each printProducts as product}
             <div class={`flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50
                 ${product.sold ? 'bg-red-50 border-red-200' : ''}`}>
               <div class="flex-1 min-w-0">
@@ -494,7 +503,7 @@
         class:bg-yellow-600={!isLoading}
         class:bg-gray-400={isLoading}
         class:hover:bg-yellow-700={!isLoading}
-        disabled={isLoading || selectedProducts.length === 0}
+        disabled={isLoading || printProducts.length === 0}
         >
 
           <span class="text-white">
@@ -527,7 +536,7 @@
             class:bg-blue-600={!isLoading}
             class:bg-gray-400={isLoading}
             class:hover:bg-blue-700={!isLoading}
-            disabled={ isLoading || selectedProducts.length === 0 || (!printOptions.markAsSold && !printOptions.printReceipt && !printOptions.showEmailInput) || (printOptions.showEmailInput && !!emailError)}
+            disabled={ isLoading || printProducts.length === 0 || (!printOptions.markAsSold && !printOptions.printReceipt && !printOptions.showEmailInput) || (printOptions.showEmailInput && !!emailError)}
             >
             {#if isLoading}
               <!-- Spinner -->
@@ -551,5 +560,5 @@
 </div>
 
 {#if showEditPrintModal}
-  <EditPrintModal bind:showEditPrintModal={showEditPrintModal} bind:editedProduct={editedProduct} bind:selectedProducts={selectedProducts}/>
+  <EditPrintModal bind:showEditPrintModal={showEditPrintModal} bind:editedProduct={editedProduct} bind:selectedProducts={printProducts}/>
 {/if}

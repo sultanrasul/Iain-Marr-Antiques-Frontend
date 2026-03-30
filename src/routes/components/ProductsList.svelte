@@ -1,25 +1,27 @@
 <!-- ProductsList.svelte -->
 <script lang="ts">
-  import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter, Eye, ArrowUpDown } from 'lucide-svelte';
+  import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter, Eye, ArrowUpDown, X, Save, Edit, FileChartColumnIncreasingIcon } from 'lucide-svelte';
   import { BACKEND_URL } from '../conf';
   import { onMount } from 'svelte';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import type { Product } from '@/models/product';
-  import type { PrintOptions } from '@/types';
+  import type { PrintOptions, Stats } from '@/types';
   import ProductModal from './modals/ProductModal.svelte';
   import ProductInfo from './modals/ProductInfo.svelte';
+  import { toast } from 'svelte-sonner';
 
   export let selectedProducts: Product[];
   export let show: boolean = false;
   export let products: Product[]
   export let printOptions: PrintOptions;
+  export let stats: Stats;
   let isLoading = false;
   let error: string | null;
 
   let selectedProductForDetails: Product | null;   // null = modal closed, else the product object
 
   let sortField: 'sku_no' | 'im_sku' | 'description' | 'quantity' | 'selling_price' | 'purchase_price' = 'sku_no';
-  let sortOrder: 'asc' | 'desc' = 'asc';
+  let sortOrder: 'asc' | 'desc' = 'desc';
 
   // Filter state
   let skuText: string = ''; // text input for SKU
@@ -33,16 +35,8 @@
 
 
   // Pagination based on filtered sales
-  $: totalPages = Math.ceil(products?.length / itemsPerPage);
-  $: paginated = products?.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // Reset to first page when filters change
-  $: {
-    currentPage = 1;
-  }
+  $: totalPages = Math.ceil((stats?.total_products || 0) / itemsPerPage);
+  $: paginated = products;
 
   $: pageNumbers = (() => {
     const delta = 2;
@@ -71,7 +65,7 @@
     return rangeWithDots;
   })();
 
-  async function fetchProducts() {
+  async function fetchProducts() { 
     let url = `${BACKEND_URL}/stock/get-stock?`;
 
     if (skuText) url += `sku_text=${encodeURIComponent(skuText)}&`;
@@ -81,6 +75,9 @@
 
     // Add sorting
     if (sortField) url += `sort_field=${sortField}&sort_order=${sortOrder}&`;
+
+    // Add pagination
+    url += `page=${currentPage}&items_per_page=${itemsPerPage}`;
 
     try {
       isLoading = true;
@@ -109,6 +106,7 @@
   function goToPage(page: number) {
     if (page >= 1 && page <= totalPages) {
       currentPage = page;
+      fetchProducts();
     }
     const salesHistoryEl = document.getElementById('salesHistory');
     if (salesHistoryEl) {
@@ -123,7 +121,6 @@
 
   // Toggle selection: add or remove a single product
   function toggleSelect(product: Product): void {
-      const productCopy: Product = { ...product, quantity: 1 };
 
       if (selectedProducts.some((p) => p.sku_no === product.sku_no)) {
           // Remove product if already selected
@@ -132,7 +129,7 @@
           );
       } else {
           // Add product copy with quantity = 1
-          selectedProducts = [...selectedProducts, productCopy];
+          selectedProducts = [...selectedProducts, product];
       }
   }
 
@@ -147,19 +144,6 @@
       }
   }
 
-  // Remove a single product from the selected list (by sku_no)
-  function removeSelected(product: Product): void {
-    selectedProducts = selectedProducts.filter(p => p.sku_no !== product.sku_no);
-  }
-
-
-
-
-  function applyFilters(event: SubmitEvent & { currentTarget: EventTarget & HTMLFormElement; }) {
-    throw new Error('Function not implemented.');
-  }
-
-
   function sortBy(field: typeof sortField) {
     if (sortField === field) {
       // Toggle between asc/desc if same column
@@ -170,6 +154,66 @@
     }
     fetchProducts();
   }
+
+    // Edit mode for selected products
+  let isEditingSelected = false;
+  let editableSelectedProducts: Product[] = [];
+
+  // Helper to get a copy of selected products for editing
+  function startEditingSelected() {
+    editableSelectedProducts = selectedProducts.map(p => ({ ...p }));
+    isEditingSelected = true;
+  }
+
+  // Cancel editing – discard changes
+  function cancelEditingSelected() {
+    isEditingSelected = false;
+    editableSelectedProducts = [];
+  }
+
+  // Save edited products – apply changes to original selectedProducts and to main products array
+  async function saveEditingSelected() {
+    let isSaving = true;
+
+    try {
+      if (!editableSelectedProducts.length) return;
+
+      const res = await fetch(`${BACKEND_URL}/stock/modify-products`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify(editableSelectedProducts)
+      });
+
+      if (!res.ok) throw new Error("Request failed");
+
+      selectedProducts = editableSelectedProducts.map(p => ({ ...p }));
+
+      editableSelectedProducts.forEach(editedProduct => {
+        const index = products.findIndex(p => p.sku_no === editedProduct.sku_no);
+        if (index !== -1) {
+          products[index] = { ...editedProduct };
+        }
+      });
+
+      toast.success("Product updated successfully!");
+
+      await fetchProducts(); // refresh from backend (source of truth)
+
+      isEditingSelected = false;
+      editableSelectedProducts = [];
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save product");
+      // ❗ Keep edit mode open so user can retry
+    } finally {
+      isSaving = false;
+    }
+  }
+  
 </script>
 
 {#if selectedProductForDetails}
@@ -201,22 +245,55 @@
   <div class="bg-white rounded-xl shadow p-6" id="salesHistory">
     <!-- Header with back button and summary -->
     <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-4">
-        <button
-            on:click={() => { show = !show }}
-          class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
-          title="Back to products"
-        >
-          <ArrowLeft class="w-5 h-5 text-gray-600" />
-        </button>
-        <div class="flex items-center space-x-2">
-          <PoundSterling class="w-6 h-6 text-[#011993]" />
-          <h2 class="text-2xl font-semibold text-gray-800">Products</h2>
+          <div class="flex items-center gap-4">
+            <button
+                on:click={() => { show = !show }}
+              class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+              title="Back to products"
+            >
+              <ArrowLeft class="w-5 h-5 text-gray-600" />
+            </button>
+            <div class="flex items-center space-x-2">
+              <PoundSterling class="w-6 h-6 text-[#011993]" />
+              <h2 class="text-2xl font-semibold text-gray-800">Products</h2>
+            </div>
+          </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+            {products.length} total products
+          </span>
+
+          <!-- Edit Selected Button (only show if at least one product selected and not already editing) -->
+          {#if !isEditingSelected && selectedProducts.length > 0}
+            <button
+              on:click={startEditingSelected}
+              class="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            >
+              <Edit class="w-4 h-4" />
+              <span>Edit Selected ({selectedProducts.length})</span>
+            </button>
+          {/if}
+
+          <!-- Save/Cancel buttons when editing -->
+          {#if isEditingSelected}
+            <div class="flex gap-2">
+              <button
+                on:click={saveEditingSelected}
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+              >
+                <Save class="w-4 h-4" />
+                <span>Save Changes</span>
+              </button>
+              <button
+                on:click={cancelEditingSelected}
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+              >
+                <X class="w-4 h-4" />
+                <span>Cancel</span>
+              </button>
+            </div>
+          {/if}
         </div>
-      </div>
-      <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-        {products.length} total products
-      </span>
     </div>
 
 
@@ -357,34 +434,123 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           {#each paginated as product}
-            <tr class:hover:bg-blue-50={isSelected(product)} class:bg-blue-50={isSelected(product)} class="hover:bg-gray-50 transition-colors cursor-pointer" on:click={() => toggleSelect(product)}>
-              <!-- Selection checkbox - stop propagation to prevent double toggle -->
-              <td class="px-6 py-4 whitespace-nowrap" on:click|stopPropagation>
+            <!-- Determine if this product is selected -->
+            {@const selected = isSelected(product)}
+            <!-- Find the editable version if in edit mode -->
+            {@const editableProduct = isEditingSelected
+              ? editableSelectedProducts.find(ep => ep.sku_no === product.sku_no)
+              : null
+            }
+
+            <tr on:click={isEditingSelected ? undefined : () => toggleSelect(product)} class="text-black transition-colors cursor-pointer" class:bg-blue-50={isSelected(product)} class:hover:bg-blue-50={isSelected(product)} class:hover:bg-gray-50={!isSelected(product)}>
+              <!-- Selection checkbox - disabled during edit mode -->
+              <td class="px-4 py-2 whitespace-nowrap align-middle" on:click|stopPropagation>
                 <input
                   type="checkbox"
-                  checked={isSelected(product)}
+                  checked={selected}
+                  disabled={isEditingSelected}
                   on:change={() => toggleSelect(product)}
-                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  class="rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-shadow"
                 />
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{product.sku_no || '—'}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{product.im_sku || '—'}</td>
-              <td class="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs truncate" title={product.item_description}>
-                <div class="flex items-center">
-                  <span class="capitalize">{product.item_description || '—'}</span>
-                </div>
+
+              <!-- SKU (never editable) -->
+              <td class="px-4 py-2 whitespace-nowrap text-sm font-mono font-medium text-gray-700">
+                {product.sku_no || '—'}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                <div class="flex items-center">
-                  <Package class="w-4 h-4 text-gray-400 mr-2" />
-                  {product.quantity}
-                </div>
+
+              <!-- IM SKU - editable if selected and in edit mode -->
+              <td class="px-4 py-2 whitespace-nowrap text-sm font-mono">
+                {#if isEditingSelected && editableProduct}
+                  <input
+                    type="text"
+                    bind:value={editableProduct.im_sku}
+                    placeholder="IM SKU"
+                    class="w-32 px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                  />
+                {:else}
+                  <span class="text-gray-500">{product.im_sku || '—'}</span>
+                {/if}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600"> {product.selling_price}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">{product.purchase_price}</td>
-              <td class="px-6 py-4 text-center" on:click|stopPropagation={()=> {selectedProductForDetails = product}}>
+
+              <!-- Description - editable if selected and in edit mode -->
+              <td class="px-4 py-2 text-sm max-w-xs">
+                {#if isEditingSelected && editableProduct}
+                  <input
+                    type="text"
+                    bind:value={editableProduct.item_description}
+                    placeholder="Description"
+                    class="w-full min-w-[200px] px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                  />
+                {:else}
+                  <div class="flex items-center gap-2">
+                    <span class="capitalize text-gray-800 truncate" title={product.item_description}>
+                      {product.item_description || '—'}
+                    </span>
+                  </div>
+                {/if}
+              </td>
+
+              <!-- Quantity - editable if selected and in edit mode -->
+              <td class="px-4 py-2 whitespace-nowrap text-sm">
+                {#if isEditingSelected && editableProduct}
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    bind:value={editableProduct.quantity}
+                    class="w-24 px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                  />
+                {:else}
+                  <div class="flex items-center gap-1.5">
+                    <Package class="w-4 h-4 text-gray-400" />
+                    <span class="font-medium text-gray-700">{product.quantity}</span>
+                  </div>
+                {/if}
+              </td>
+
+              <!-- Selling Price - editable if selected and in edit mode -->
+              <td class="px-4 py-2 whitespace-nowrap text-sm font-semibold">
+                {#if isEditingSelected && editableProduct}
+                  <div class="relative inline-block">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">£</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      bind:value={editableProduct.selling_price}
+                      class="w-32 pl-7 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                {:else}
+                  <span class="text-emerald-700 font-bold">£{product.selling_price}</span>
+                {/if}
+              </td>
+
+              <!-- Purchase Price - editable if selected and in edit mode -->
+              <td class="px-4 py-2 whitespace-nowrap text-sm">
+                {#if isEditingSelected && editableProduct}
+                  <div class="relative inline-block">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">£</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      bind:value={editableProduct.purchase_price}
+                      class="w-32 pl-7 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                {:else}
+                  <span class="text-gray-600">£{product.purchase_price}</span>
+                {/if}
+              </td>
+
+              <!-- View button (disabled during edit mode) -->
+              <td class="px-4 py-2 text-center align-middle" on:click|stopPropagation>
                 <button
-                  class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm"
+                  on:click={() => !isEditingSelected && (selectedProductForDetails = product)}
+                  disabled={isEditingSelected}
+                  class="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 transition-all duration-200 font-medium text-sm shadow-sm hover:shadow disabled:opacity-40 disabled:cursor-not-allowed"
                   title="View full details"
                 >
                   <Eye class="w-4 h-4" />
@@ -394,11 +560,13 @@
             </tr>
           {:else}
             <tr>
-              <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                <div class="flex flex-col items-center">
-                  <Package class="w-12 h-12 text-gray-300 mb-3" />
-                  <p class="text-lg font-medium text-gray-700">No Products found</p>
-                  <p class="text-sm text-gray-500">Try adjusting your filters</p>
+              <td colspan="8" class="px-6 py-16 text-center">
+                <div class="flex flex-col items-center gap-3">
+                  <div class="p-4 bg-gray-100 rounded-full">
+                    <Package class="w-10 h-10 text-gray-400" />
+                  </div>
+                  <p class="text-lg font-medium text-gray-700">No products found</p>
+                  <p class="text-sm text-gray-500">Try adjusting your filters or clear them</p>
                 </div>
               </td>
             </tr>
@@ -410,7 +578,7 @@
   </div>
 
   <!-- Pagination -->
-  {#if products && products?.length > itemsPerPage}
+  {#if stats && stats.total_products > itemsPerPage}
     <div class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="text-sm text-gray-600">
         Showing {Math.min((currentPage - 1) * itemsPerPage + 1, products?.length)} 
@@ -464,6 +632,7 @@
         <select
           id="itemsPerPage"
           bind:value={itemsPerPage}
+          on:change={fetchProducts}
           class="px-2 py-1 border border-gray-300 text-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value={10}>10</option>

@@ -101,7 +101,8 @@
   // let googleSheetId: string = '';
 
   let syncResults: [[number, string][], [number, string][]];
-  let isSyncing: boolean = false;
+  let isImportingData: boolean = false;
+  let isSyncingDataToGoogleSheets: boolean = false;
 
   let selectedFile = null;
   let newFileName = "";
@@ -141,10 +142,10 @@
     }
   }
 
-  async function syncGoogleSheets(): Promise<void> {
-    isSyncing = true;
+  async function importGoogleSheetData(): Promise<void> {
+    isImportingData = true;
     try {
-      const response = await fetch(`${BACKEND_URL}/system/sync`);
+      const response = await fetch(`${BACKEND_URL}/system/import-google-sheets-data`);
       if (!response.ok) throw new Error("Failed");
 
       syncResults = await response.json();
@@ -153,7 +154,23 @@
       console.error("Failed to check printer status:", error);
       printerConnected = false;
     } finally {
-      isSyncing = false;
+      isImportingData = false;
+    }
+  }
+
+  async function syncDataToGoogleSheets(): Promise<void> {
+    isSyncingDataToGoogleSheets = true;
+    try {
+      const response = await fetch(`${BACKEND_URL}/system/sync-data-to-google-sheets`);
+      if (!response.ok) throw new Error("Failed");
+
+      syncResults = await response.json();
+
+    } catch (error) {
+      console.error("Failed to check printer status:", error);
+      printerConnected = false;
+    } finally {
+      isSyncingDataToGoogleSheets = false;
     }
   }
 
@@ -491,18 +508,32 @@
             <p class="text-xs text-gray-500 mt-1">The ID from your Google Sheets URL (the long string between /d/ and /edit).</p>
           </div>
         </div>
-        <!-- Sync Button -->
+        <!-- Sync Data to Google Sheets -->
         <button
-          on:click={syncGoogleSheets}
-          disabled={isSyncing}
+          on:click={syncDataToGoogleSheets}
+          disabled={isSyncingDataToGoogleSheets}
           class="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {#if isSyncing}
+          {#if isSyncingDataToGoogleSheets}
             <Loader2 class="w-4 h-4 mr-2 animate-spin" />
-            Syncing...
+            Importing...
           {:else}
             <RefreshCw class="w-4 h-4 mr-2" />
-            Sync Data from Google Sheets
+            Sync Data to Google Sheets
+          {/if}
+        </button>
+        <!-- Import Data into Google Sheets -->
+        <button
+          on:click={importGoogleSheetData}
+          disabled={isImportingData}
+          class="w-full flex items-center justify-center px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {#if isImportingData}
+            <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+            Importing...
+          {:else}
+            <RefreshCw class="w-4 h-4 mr-2" />
+            Import Data from Google Sheets
           {/if}
         </button>
 

@@ -7,13 +7,14 @@
   import { onMount } from 'svelte';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import type { Product } from '@/models/product';
-  import type { PrintOptions } from '@/types';
+  import type { PrintOptions, Stats } from '@/types';
 
   export let selectedProducts: Product[];
   export let showPrintModal: boolean = false;
   export let sales: Sales[] | null;  // callback to return to products view
   export let showSales: boolean; 
   export let printOptions: PrintOptions;
+  export let stats: Stats;
   let isLoading = false;
   let error: string | null;
 
@@ -29,7 +30,7 @@
   let minAmount = 0;
 
   let sortField: 'date_sold' | 'order_id' | 'customer_name' | 'items_purchased' | 'total_amount' = 'order_id';
-  let sortOrder: 'asc' | 'desc' = 'asc';
+  let sortOrder: 'asc' | 'desc' = 'desc';
 
   // Pagination
   let currentPage = 1;
@@ -42,16 +43,8 @@
   $: uniqueCustomers = new Set(sales?.map(s => s.customer_name) ?? []).size;
 
   // Pagination based on filtered sales
-  $: totalPages = Math.ceil((sales?.length ?? 0) / itemsPerPage);
-  $: paginated = sales?.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // Reset to first page when filters change
-  $: {
-    currentPage = 1;
-  }
+  $: totalPages = Math.ceil((stats?.total_orders || 0) / itemsPerPage);
+  $: paginated = sales;
 
   $: pageNumbers = (() => {
     const delta = 2;
@@ -93,6 +86,9 @@
     // Add sorting
     if (sortField) url += `sort_field=${sortField}&sort_order=${sortOrder}&`;
 
+    // Add pagination
+    url += `page=${currentPage}&items_per_page=${itemsPerPage}`;
+
     try {
       isLoading = true;
       error = null;
@@ -112,6 +108,7 @@
   function goToPage(page: number) {
     if (page >= 1 && page <= totalPages) {
       currentPage = page;
+      fetchSales();
     }
     const salesHistoryEl = document.getElementById('salesHistory');
     if (salesHistoryEl) {
@@ -457,12 +454,12 @@
   </div>
 
   <!-- Pagination -->
-  {#if sales && sales?.length > itemsPerPage}
+  {#if stats && stats.total_orders > itemsPerPage}
     <div class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="text-sm text-gray-600">
-        Showing {Math.min((currentPage - 1) * itemsPerPage + 1, sales?.length)} 
-        to {Math.min(currentPage * itemsPerPage, sales?.length)} 
-        of {sales?.length} sales
+        Showing {Math.min((currentPage - 1) * itemsPerPage + 1, stats?.total_orders)} 
+        to {Math.min(currentPage * itemsPerPage, stats?.total_orders)} 
+        of {stats?.total_orders} sales
       </div>
       
       <div class="flex items-center gap-1">
@@ -511,6 +508,7 @@
         <select
           id="itemsPerPage"
           bind:value={itemsPerPage}
+          on:change={fetchSales}
           class="px-2 py-1 border border-gray-300 text-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value={10}>10</option>

@@ -52,13 +52,13 @@
     try {
         isSaving = true;
         if (editableProduct){
-            const res = await fetch(`${BACKEND_URL}/stock/modify-product`, {
+            const res = await fetch(`${BACKEND_URL}/stock/modify-products`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
                 Accept: "application/json"
               },
-              body: JSON.stringify(editableProduct)
+              body: JSON.stringify([editableProduct])
             });
     
             if (!res.ok) throw new Error("Request failed");

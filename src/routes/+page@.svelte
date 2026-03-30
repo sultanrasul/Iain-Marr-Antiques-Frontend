@@ -268,10 +268,10 @@
         
         {#if showSales} 
             <div class="mt-8">
-                <SalesList bind:printOptions={printOptions} bind:sales={sales} bind:showSales={showSales} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
+                <SalesList bind:stats={stats} bind:printOptions={printOptions} bind:sales={sales} bind:showSales={showSales} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
             </div>
             {:else if showProductList}
-                <ProductsList bind:printOptions={printOptions} bind:products={products} bind:show={showProductList} bind:selectedProducts={selectedProducts}/>
+                <ProductsList bind:stats={stats} bind:printOptions={printOptions} bind:products={products} bind:show={showProductList} bind:selectedProducts={selectedProducts}/>
 
             {:else}
                 <!-- Controls -->

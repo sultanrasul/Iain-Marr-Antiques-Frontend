@@ -86,7 +86,7 @@
 
     try {
         const url = isEditMode
-        ? "/stock/modify-product"
+        ? "/stock/modify-products"
         : "/stock/add-product"
 
 
