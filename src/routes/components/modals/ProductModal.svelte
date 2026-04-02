@@ -59,7 +59,8 @@
       on_website: false,
       location: "",
       quantity: 1,
-      photograph: ""
+      photograph: "",
+      notes: ""
     };
   }
 

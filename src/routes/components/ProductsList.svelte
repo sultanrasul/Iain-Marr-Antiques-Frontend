@@ -1,6 +1,6 @@
 <!-- ProductsList.svelte -->
 <script lang="ts">
-  import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter, Eye, ArrowUpDown, X, Save, Edit, FileChartColumnIncreasingIcon } from 'lucide-svelte';
+  import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter, Eye, ArrowUpDown, X, Save, Edit, FileChartColumnIncreasingIcon, Plus } from 'lucide-svelte';
   import { BACKEND_URL } from '../conf';
   import { onMount } from 'svelte';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -12,7 +12,7 @@
 
   export let selectedProducts: Product[];
   export let show: boolean = false;
-  export let products: Product[]
+  let products: Product[] = [];
   export let printOptions: PrintOptions;
   export let stats: Stats;
   let isLoading = false;
@@ -103,10 +103,10 @@
   // Automatically fetch products when the component mounts
   onMount(fetchProducts);
 
-  function goToPage(page: number) {
+  async function goToPage(page: number) {
     if (page >= 1 && page <= totalPages) {
       currentPage = page;
-      fetchProducts();
+      await fetchProducts();
     }
     const salesHistoryEl = document.getElementById('salesHistory');
     if (salesHistoryEl) {
@@ -144,20 +144,28 @@
       }
   }
 
-  function sortBy(field: typeof sortField) {
-    if (sortField === field) {
-      // Toggle between asc/desc if same column
-      sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-    } else {
+  async function sortBy(field: typeof sortField, order?: 'asc' | 'desc') {
+    if (order) {
+      // If order is provided, set it directly
       sortField = field;
-      sortOrder = 'asc'; // default to ascending on new column
+      sortOrder = order;
+    } else {
+      // Normal toggle behavior
+      if (sortField === field) {
+        // Toggle between asc/desc if same column
+        sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortField = field;
+        sortOrder = 'asc'; // default to ascending on new column
+      }
     }
-    fetchProducts();
+    await fetchProducts();
   }
 
     // Edit mode for selected products
   let isEditingSelected = false;
   let editableSelectedProducts: Product[] = [];
+  let isAddProductSelected = false;
 
   // Helper to get a copy of selected products for editing
   function startEditingSelected() {
@@ -174,17 +182,19 @@
   // Save edited products – apply changes to original selectedProducts and to main products array
   async function saveEditingSelected() {
     let isSaving = true;
+    console.log(`Are you adding a product: ${tempNewProduct}`)
+    const url = tempNewProduct ? "/stock/add-product" : "/stock/modify-products"
 
     try {
       if (!editableSelectedProducts.length) return;
 
-      const res = await fetch(`${BACKEND_URL}/stock/modify-products`, {
+      const res = await fetch(BACKEND_URL + url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json"
         },
-        body: JSON.stringify(editableSelectedProducts)
+        body: JSON.stringify(tempNewProduct ? tempNewProduct : editableSelectedProducts)
       });
 
       if (!res.ok) throw new Error("Request failed");
@@ -214,6 +224,104 @@
     }
   }
   
+
+  // Edit mode for selected products
+  let tempNewProduct: Product | null = null;
+
+  async function addProduct(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement; }) {
+    console.log("CURRENT PAGE: ",currentPage)
+    if (sortField !== "sku_no" || sortOrder !== "desc" || currentPage !== 1) {
+      sortField = "sku_no";
+      sortOrder = "desc";
+      await goToPage(1);
+    }
+
+    const lastSku = products?.[0]?.sku_no ?? "0";
+    isAddProductSelected = true;
+
+    // Cancel any existing edit mode first
+    if (isEditingSelected) {
+      cancelEditingSelected();
+      selectedProducts = [];
+    }
+    
+    // Create a new empty product
+    const newProduct: Product = {
+      sku_no: incrementSKU(lastSku),
+      im_sku: "",
+      item_description: "",
+      selling_price: 0,
+      purchase_price: 0,
+      seller_name_address: "",
+      date_bought: "",
+      sold: false,
+      commission: 0,
+      date_sold: "",
+      invoice_no_xero: "",
+      on_website: false,
+      location: "",
+      quantity: 1,
+      photograph: "",
+      notes: ""
+    };
+    
+    // Add to the beginning of products array
+    products = [newProduct, ...products];
+    
+    // Set as temporary new product
+    tempNewProduct = newProduct;
+    editableSelectedProducts = [newProduct];
+    isEditingSelected = true;
+  }
+  function cancelAddProduct() {
+  // Remove the temporary product from the list
+  if (tempNewProduct) {
+    products = products.filter(p => p !== tempNewProduct);
+  }
+  tempNewProduct = null;
+  
+  isAddProductSelected = false;
+  isEditingSelected = false;
+  editableSelectedProducts = [];
+}
+
+  function incrementSKU(sku: string): string {
+    // Match: numeric part before dash, numeric part after dash
+    const match = sku.match(/^(\d+)-(\d+)$/);
+    if (!match) return sku;
+
+    let [_, major, minor] = match;
+
+    let minorNum = parseInt(minor, 10);
+    // If minor is 999, roll over
+    if (minorNum === 999) {
+        let majorNum = parseInt(major, 10) + 1;
+        // Minor resets to 0
+        return `${majorNum}-00`;
+    }
+
+    minorNum += 1;
+
+    // Preserve leading zeros for minor
+    const minorLength = minor.length;
+    return `${major}-${minorNum.toString().padStart(minorLength, '0')}`;
+  }
+  
+  function highlightMultiple(text: string, queries: string[]) {
+    let result = String(text);
+
+    queries.filter(Boolean).forEach(query => {
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escaped})`, 'gi');
+
+      result = result.replace(
+        regex,
+        `<mark class="bg-blue-200 text-blue-900 rounded">$1</mark>`
+      );
+    });
+
+    return result;
+  }
 </script>
 
 {#if selectedProductForDetails}
@@ -264,34 +372,31 @@
           </span>
 
           <!-- Edit Selected Button (only show if at least one product selected and not already editing) -->
-          {#if !isEditingSelected && selectedProducts.length > 0}
-            <button
-              on:click={startEditingSelected}
-              class="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-            >
-              <Edit class="w-4 h-4" />
-              <span>Edit Selected ({selectedProducts.length})</span>
-            </button>
-          {/if}
-
+          
           <!-- Save/Cancel buttons when editing -->
-          {#if isEditingSelected}
-            <div class="flex gap-2">
-              <button
-                on:click={saveEditingSelected}
-                class="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-              >
-                <Save class="w-4 h-4" />
-                <span>Save Changes</span>
-              </button>
-              <button
-                on:click={cancelEditingSelected}
-                class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
-              >
-                <X class="w-4 h-4" />
-                <span>Cancel</span>
-              </button>
-            </div>
+          {#if !isAddProductSelected}
+            <button on:click={addProduct} class="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+              <Plus class="w-4 h-4" />
+              <span>Add Product</span>
+            </button>
+
+            {:else}
+              <div class="flex gap-2">
+                <button
+                  on:click={saveEditingSelected}
+                  class="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                >
+                  <Save class="w-4 h-4" />
+                  <span>Save Changes</span>
+                </button>
+                <button
+                  on:click={cancelAddProduct}
+                  class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                >
+                  <X class="w-4 h-4" />
+                  <span>Cancel</span>
+                </button>
+              </div>
           {/if}
         </div>
     </div>
@@ -333,7 +438,7 @@
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1"
               bind:value={minSellingPrice}
               placeholder="0.00"
               class="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -351,7 +456,7 @@
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1"
               bind:value={minPurchasePrice}
               placeholder="0.00"
               class="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -375,7 +480,7 @@
     </form>
 
 
-    <!-- Sales table – now with checkboxes -->
+    <!-- Sales table -->
     <div class="overflow-x-auto rounded-lg border border-gray-200">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
@@ -409,21 +514,21 @@
 
             <th on:click={() => sortBy('quantity')} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="quantity">
               <div class="flex items-center gap-1">
-                Quantity
+                Qty
                 <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
               </div>
             </th>
 
             <th on:click={() => sortBy('selling_price')} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="selling_price">
               <div class="flex items-center gap-1">
-                Selling Price
+                Price
                 <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
               </div>
             </th>
 
             <th on:click={() => sortBy('purchase_price')} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="purchase_price">
               <div class="flex items-center gap-1">
-                Purchase Price
+                Cost
                 <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
               </div>
             </th>
@@ -456,7 +561,7 @@
 
               <!-- SKU (never editable) -->
               <td class="px-4 py-2 whitespace-nowrap text-sm font-mono font-medium text-gray-700">
-                {product.sku_no || '—'}
+                {@html product.sku_no ? highlightMultiple(product.sku_no, [skuText]) : '—'}
               </td>
 
               <!-- IM SKU - editable if selected and in edit mode -->
@@ -469,7 +574,7 @@
                     class="w-32 px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
                   />
                 {:else}
-                  <span class="text-gray-500">{product.im_sku || '—'}</span>
+                  {@html product.im_sku ? highlightMultiple(product.im_sku, [skuText]) : '—'}
                 {/if}
               </td>
 
@@ -485,7 +590,7 @@
                 {:else}
                   <div class="flex items-center gap-2">
                     <span class="capitalize text-gray-800 truncate" title={product.item_description}>
-                      {product.item_description || '—'}
+                      {@html product.item_description ? highlightMultiple(product.item_description, [skuText, itemDescription]) : '—'}
                     </span>
                   </div>
                 {/if}
@@ -518,7 +623,18 @@
                       type="number"
                       step="0.01"
                       min="0"
-                      bind:value={editableProduct.selling_price}
+                      value={editableProduct.selling_price}
+                      on:input={(e) => {
+                        let value = parseFloat(e.currentTarget.value);
+
+                        if (isNaN(value)) value = 0;
+                        if (value < 0) value = 0;
+
+                        editableProduct.selling_price = value;
+
+                        // Force UI sync
+                        e.currentTarget.value = value.toString();
+                      }}
                       class="w-32 pl-7 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
                     />
                   </div>
@@ -537,6 +653,17 @@
                       step="0.01"
                       min="0"
                       bind:value={editableProduct.purchase_price}
+                      on:input={(e) => {
+                        let value = parseFloat(e.currentTarget.value);
+
+                        if (isNaN(value)) value = 0;
+                        if (value < 0) value = 0;
+
+                        editableProduct.purchase_price = value;
+
+                        // Force UI sync
+                        e.currentTarget.value = value.toString();
+                      }}
                       class="w-32 pl-7 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
                     />
                   </div>
@@ -643,4 +770,54 @@
       </div>
     </div>
   {/if}
+{/if}
+
+
+<!-- Floating Action Bar - Shows when products are selected -->
+{#if selectedProducts.length > 0}
+  <div class="fixed top-6 right-6 z-50">
+    <div class="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-blue-100 px-3 py-2 flex items-center gap-3">
+      <!-- Selection count badge -->
+      <div class="bg-blue-50 text-blue-700 rounded-full w-7 h-7 flex items-center justify-center text-xs font-semibold">
+        {selectedProducts.length}
+      </div>
+      
+      {#if !isEditingSelected}
+        <!-- Edit Selected Button -->
+        <button on:click={startEditingSelected} class="text-blue-600 flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" title="Edit product">
+          <Edit class="w-4 h-4" />
+          <span>Edit</span>
+        </button>
+      {:else}
+        <!-- Edit Mode Controls -->
+        <div class="flex items-center gap-2">
+          <button
+            on:click={saveEditingSelected}
+            class="flex items-center gap-1.5 px-3 py-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-200 font-medium text-sm bg-white border border-gray-200 rounded-lg"
+          >
+            <Save class="w-3.5 h-3.5" />
+            <span>Save</span>
+          </button>
+          <button
+            on:click={cancelEditingSelected}
+            class="flex items-center gap-1.5 px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-all duration-200 font-medium text-sm bg-white border border-gray-200 rounded-lg"
+          >
+            <X class="w-3.5 h-3.5" />
+            <span>Cancel</span>
+          </button>
+        </div>
+      {/if}
+      
+      <!-- Close/Clear Selection Button -->
+      {#if !isEditingSelected}
+        <button
+          on:click={() => selectedProducts = []}
+          class="w-6 h-6 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center transition-colors"
+          title="Clear selection"
+        >
+          <X class="w-3.5 h-3.5" />
+        </button>
+      {/if}
+    </div>
+  </div>
 {/if}
