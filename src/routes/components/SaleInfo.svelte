@@ -68,6 +68,7 @@
     if (printOptions.emailAddress && printOptions.emailAddress.length > 0) printOptions.showEmailInput = true
     printOptions.markAsSold = false;
     printOptions.copies = 1;
+    printOptions.resetQuantity = false;
     showPrintModal = true;
   }
 </script>

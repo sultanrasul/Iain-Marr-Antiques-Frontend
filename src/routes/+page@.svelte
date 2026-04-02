@@ -4,7 +4,7 @@
 
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { Printer } from 'lucide-svelte';
+    import { Printer, TreesIcon } from 'lucide-svelte';
 
     import Products from './components/Products.svelte';
     import SearchBar from './components/SearchBar.svelte';
@@ -28,7 +28,8 @@
         customerName: "",
         markAsSold: true,
         showEmailInput: false,
-        emailAddress: ""
+        emailAddress: "",
+        resetQuantity: true,
     };
 
     // Define your object using the type

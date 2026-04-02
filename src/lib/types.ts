@@ -27,6 +27,7 @@ export type PrintOptions = {
   markAsSold: boolean;
   showEmailInput: boolean;
   emailAddress: string;
+  resetQuantity: boolean;
 };
 
 export type Stats = {

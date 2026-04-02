@@ -22,12 +22,12 @@
   let printProducts: Product[] = [];
 
 
-  $: printProducts = selectedProducts.map(p => ({
-      ...p,
-      quantity: 1
-    }));
+  $: if (printOptions.resetQuantity) {
+    printProducts = selectedProducts.map(p => ({ ...p, quantity: 1 }));
+  } else {
+    printProducts = selectedProducts;
+  }
   
-
   // Email validation function
   function validateEmail(email: string) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

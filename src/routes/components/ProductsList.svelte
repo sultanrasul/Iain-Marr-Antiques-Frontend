@@ -18,6 +18,10 @@
   let isLoading = false;
   let error: string | null;
 
+  onMount(()=>{
+    printOptions.resetQuantity = true;
+  })
+
   let selectedProductForDetails: Product | null;   // null = modal closed, else the product object
 
   let sortField: 'sku_no' | 'im_sku' | 'description' | 'quantity' | 'selling_price' | 'purchase_price' = 'sku_no';
@@ -32,7 +36,7 @@
   // Pagination
   let currentPage = 1;
   let itemsPerPage = 20;
-
+  
 
   // Pagination based on filtered sales
   $: totalPages = Math.ceil((stats?.total_products || 0) / itemsPerPage);
@@ -121,7 +125,6 @@
 
   // Toggle selection: add or remove a single product
   function toggleSelect(product: Product): void {
-
       if (selectedProducts.some((p) => p.sku_no === product.sku_no)) {
           // Remove product if already selected
           selectedProducts = selectedProducts.filter(
