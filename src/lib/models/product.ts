@@ -2,6 +2,8 @@ export interface Product {
   row_number?: number;
 
   sku_no: string;
+  new_sku_no?: string;
+
   im_sku: string;
 
   item_description: string;

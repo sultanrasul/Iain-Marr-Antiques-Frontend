@@ -47,34 +47,56 @@
 
   let isSaving = false;
   async function saveChanges() {
-    isSaving = false;
+    isSaving = true;
 
     try {
-        isSaving = true;
-        if (editableProduct){
-            const res = await fetch(`${BACKEND_URL}/stock/modify-products`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json"
-              },
-              body: JSON.stringify([editableProduct])
-            });
-    
-            if (!res.ok) throw new Error("Request failed");
-            
-            toast.success("Product updated successfully!");
-    
-    
-            isEditing = false;
-            isSaving = true;
-            fetchProducts();
+      if (editableProduct) {
+        const res = await fetch(`${BACKEND_URL}/stock/modify-products`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json"
+          },
+          body: JSON.stringify([editableProduct])
+        });
+
+        if (!res.ok) {
+          let errorMessage = "Request failed";
+
+          try {
+            const data = await res.json();
+
+            if (data?.detail) {
+              errorMessage = data.detail;
+            }
+
+          } catch {
+            // response wasn't JSON
+          }
+
+          throw new Error(errorMessage);
         }
+
+        toast.success("Product updated successfully!");
+
+        isEditing = false;
+
+        await fetchProducts();
+
+      }
+
     } catch (err) {
-        console.error(err);
-        toast.error("Failed to save product");
+      console.error(err);
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to save product";
+
+      toast.error(`${message}`);
+
     } finally {
-        isSaving = true;
+      isSaving = false;
     }
   }
 </script>
@@ -82,51 +104,6 @@
 {#if product}
   <div class="min-h-screen rounded-lg bg-gray-50 p-4 md:p-8">
     <div class="max-w-7xl mx-auto">
-      <!-- Product summary card (now reflects current values) -->
-      <!-- <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
-        <div class="p-6">
-          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-
-            <div class="flex items-start gap-4">
-              <div class="p-3 bg-blue-50 rounded-xl">
-                <Package class="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <div class="text-sm font-medium text-gray-500 mb-1">SKU</div>
-                <div class="text-2xl font-bold text-gray-900 font-mono tracking-tight">
-                  {currentProduct?.sku_no}
-                </div>
-              </div>
-            </div>
-
-
-            <div class="flex flex-wrap gap-2">
-              {#if currentProduct?.im_sku}
-                <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
-                  <Tag class="w-3.5 h-3.5 text-gray-500" />
-                  <span class="text-sm text-gray-700">IM: {currentProduct.im_sku}</span>
-                </div>
-              {/if}
-              <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
-                <Package class="w-3.5 h-3.5 text-gray-500" />
-                <span class="text-sm text-gray-700">Qty: {currentProduct?.quantity}</span>
-              </div>
-              <div class="flex items-center gap-1.5 bg-blue-100 px-3 py-1.5 rounded-full">
-                <DollarSign class="w-3.5 h-3.5 text-blue-600" />
-                <span class="text-sm font-semibold text-blue-700">
-                  {formatCurrency(currentProduct?.selling_price ?? 0)}
-                </span>
-              </div>
-              {#if currentProduct?.purchase_price}
-                <div class="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
-                  <ShoppingBag class="w-3.5 h-3.5 text-gray-500" />
-                  <span class="text-sm text-gray-700">Cost: {formatCurrency(currentProduct.purchase_price)}</span>
-                </div>
-              {/if}
-            </div>
-          </div>
-        </div>
-      </div> -->
 
       <!-- Main details card -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -177,7 +154,11 @@
                 <Package class="w-4 h-4" />
                 SKU
               </label>
-              <input type="text" readonly value={currentProduct?.sku_no ?? ''} class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 font-mono text-sm focus:outline-none cursor-default"/>
+              {#if isEditing}
+                <input type="text" bind:value={editableProduct.new_sku_no} class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 font-mono text-sm focus:outline-none cursor-default"/>
+                {:else}
+                <input type="text" value={currentProduct?.new_sku_no ?? ''} class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 font-mono text-sm focus:outline-none cursor-default"/>
+              {/if}
             </div>
 
             <!-- IM SKU -->

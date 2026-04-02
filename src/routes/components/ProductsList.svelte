@@ -33,6 +33,14 @@
   let minSellingPrice: number;
   let minPurchasePrice: number;
 
+  async function resetFilter(updateProducts: boolean){
+    skuText = ''; 
+    itemDescription = '';
+    minSellingPrice = 0;
+    minPurchasePrice = 0;
+    if (updateProducts) await fetchProducts();
+  }
+
   // Pagination
   let currentPage = 1;
   let itemsPerPage = 20;
@@ -185,8 +193,12 @@
   // Save edited products – apply changes to original selectedProducts and to main products array
   async function saveEditingSelected() {
     let isSaving = true;
+
     console.log(`Are you adding a product: ${tempNewProduct}`)
-    const url = tempNewProduct ? "/stock/add-product" : "/stock/modify-products"
+
+    const url = tempNewProduct
+      ? "/stock/add-product"
+      : "/stock/modify-products";
 
     try {
       if (!editableSelectedProducts.length) return;
@@ -197,15 +209,36 @@
           "Content-Type": "application/json",
           Accept: "application/json"
         },
-        body: JSON.stringify(tempNewProduct ? tempNewProduct : editableSelectedProducts)
+        body: JSON.stringify(
+          tempNewProduct
+            ? tempNewProduct
+            : editableSelectedProducts
+        )
       });
 
-      if (!res.ok) throw new Error("Request failed");
+      // 🔴 Proper error handling
+      if (!res.ok) {
+        let errorMessage = "Request failed";
+        try {
+          const data = await res.json();
+          
+          if (data.detail) {
+            errorMessage = data.detail;
+          }
+
+        } catch {
+          // ignore JSON parse failure
+        }
+        throw new Error(errorMessage);
+      }
 
       selectedProducts = editableSelectedProducts.map(p => ({ ...p }));
 
       editableSelectedProducts.forEach(editedProduct => {
-        const index = products.findIndex(p => p.sku_no === editedProduct.sku_no);
+        const index = products.findIndex(
+          p => p.sku_no === editedProduct.sku_no
+        );
+
         if (index !== -1) {
           products[index] = { ...editedProduct };
         }
@@ -213,16 +246,21 @@
 
       toast.success("Product updated successfully!");
 
-      await fetchProducts(); // refresh from backend (source of truth)
+      await fetchProducts();
 
       isEditingSelected = false;
       editableSelectedProducts = [];
 
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to save product");
-      // ❗ Keep edit mode open so user can retry
-    } finally {
+        console.error(err);
+
+        if (err instanceof Error) {
+          toast.error(`${err.message}`);
+        } else {
+          toast.error("Failed to save product");
+        }
+      } 
+    finally {
       isSaving = false;
     }
   }
@@ -233,6 +271,7 @@
 
   async function addProduct(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement; }) {
     console.log("CURRENT PAGE: ",currentPage)
+    await resetFilter(false);
     if (sortField !== "sku_no" || sortOrder !== "desc" || currentPage !== 1) {
       sortField = "sku_no";
       sortOrder = "desc";
@@ -251,6 +290,7 @@
     // Create a new empty product
     const newProduct: Product = {
       sku_no: incrementSKU(lastSku),
+      new_sku_no: incrementSKU(lastSku),
       im_sku: "",
       item_description: "",
       selling_price: 0,
@@ -563,8 +603,22 @@
               </td>
 
               <!-- SKU (never editable) -->
-              <td class="px-4 py-2 whitespace-nowrap text-sm font-mono font-medium text-gray-700">
+              <!-- <td class="px-4 py-2 whitespace-nowrap text-sm font-mono font-medium text-gray-700">
                 {@html product.sku_no ? highlightMultiple(product.sku_no, [skuText]) : '—'}
+              </td> -->
+
+              <!-- SKU - editable if selected and in edit mode -->
+              <td class="px-4 py-2 whitespace-nowrap text-sm font-mono">
+                {#if isEditingSelected && editableProduct}
+                  <input
+                    type="text"
+                    bind:value={editableProduct.new_sku_no}
+                    placeholder="SKU NO."
+                    class="w-32 px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                  />
+                {:else}
+                  {@html product.sku_no ? highlightMultiple(product.sku_no, [skuText]) : '—'}
+                {/if}
               </td>
 
               <!-- IM SKU - editable if selected and in edit mode -->
