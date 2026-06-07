@@ -1,4 +1,3 @@
-<!-- SalesList.svelte -->
 <script lang="ts">
   import { Calendar, User, Package, DollarSign, Receipt, PoundSterling, ArrowLeft, Search, Filter, ArrowUpDown } from 'lucide-svelte';
   import type { Sales } from '@/models/sales';
@@ -7,19 +6,21 @@
   import { onMount } from 'svelte';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import type { Product } from '@/models/product';
-  import type { PrintOptions, Stats } from '@/types';
+  import type { PrintOptions } from '@/types';
 
   export let selectedProducts: Product[];
   export let showPrintModal: boolean = false;
-  export let sales: Sales[] | null;  // callback to return to products view
+  export let sales: Sales[] | null = null;
   export let showSales: boolean; 
   export let printOptions: PrintOptions;
-  export let stats: Stats;
+  
+  // Update stats to handle the new backend fields
+  export let stats: { total_orders: number; total_revenue: number; average_order_value: number } | null = null;
+  
   let isLoading = false;
   let error: string | null;
 
   let selectedSale: Sales | null = null;
-
 
   // Filter state
   let fromDate = '';
@@ -36,15 +37,16 @@
   let currentPage = 1;
   let itemsPerPage = 20;
 
-
-  // Stats based on filtered sales
-  $: totalRevenue = sales?.reduce((sum, sale) => sum + sale.total_amount, 0) ?? 0;
-  $: averageOrder = sales?.length ? totalRevenue / sales?.length : 0;
+  // Use the new backend stats for global metrics
+  $: totalRevenue = stats?.total_revenue ?? 0;
+  $: averageOrder = stats?.average_order_value ?? 0;
+  $: totalOrders = stats?.total_orders ?? 0;
+  
+  // Unique customers is calculated for the current page only since it isn't in the backend stats yet
   $: uniqueCustomers = new Set(sales?.map(s => s.customer_name) ?? []).size;
 
-  // Pagination based on filtered sales
-  $: totalPages = Math.ceil((stats?.total_orders || 0) / itemsPerPage);
-  $: paginated = sales;
+  // Pagination based on backend stats
+  $: totalPages = Math.ceil(totalOrders / itemsPerPage);
 
   $: pageNumbers = (() => {
     const delta = 2;
@@ -94,7 +96,11 @@
       error = null;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Failed to load sales (${response.status})`);
-      sales = await response.json();
+      
+      const data = await response.json();
+      // Map the new response structure
+      sales = data.sales;
+      stats = data.stats;
     } catch (err) {
       console.error(err);
       error = err instanceof Error ? err.message : 'Unknown error';
@@ -155,12 +161,9 @@
     }
     fetchSales();
   }
-
-
 </script>
 
 {#if selectedSale}
-  <!-- Sale Detail View -->
   <div class="bg-white rounded-xl shadow p-6">
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-4">
@@ -177,17 +180,14 @@
         </div>
       </div>
       <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-        {sales?.length} total sales
+        {totalOrders} total sales
       </span>
     </div>
-    <SaleInfo sale={selectedSale} bind:printOptions={printOptions} bind:showPrintModal={showPrintModal}  bind:selectedProducts={selectedProducts}/>
+    <SaleInfo sale={selectedSale} bind:printOptions={printOptions} bind:showPrintModal={showPrintModal} bind:selectedProducts={selectedProducts}/>
   </div>
 
 {:else}
-  <!-- Sales List View -->
-  <!-- Sales List View - Redesigned -->
   <div class="bg-white rounded-xl shadow p-6" id="salesHistory">
-    <!-- Header with back button and summary -->
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-4">
         <button
@@ -203,11 +203,10 @@
         </div>
       </div>
       <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-        {sales?.length} total sales
+        {totalOrders} total sales
       </span>
     </div>
 
-    <!-- Stats cards – quick KPIs -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4">
         <div class="text-sm text-gray-600 flex items-center">
@@ -228,21 +227,19 @@
           <Package class="w-4 h-4 mr-1 text-purple-600" />
           Total Orders
         </div>
-        <div class="text-2xl font-bold text-gray-800">{sales?.length || 0}</div>
+        <div class="text-2xl font-bold text-gray-800">{totalOrders}</div>
       </div>
       <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4">
         <div class="text-sm text-gray-600 flex items-center">
           <User class="w-4 h-4 mr-1 text-amber-600" />
-          Unique Customers
+          Unique Customers (Current Page)
         </div>
         <div class="text-2xl font-bold text-gray-800">{uniqueCustomers}</div>
       </div>
     </div>
 
-    <!-- Filter Bar – with embedded search dropdown and Apply button -->
     <form on:submit|preventDefault={fetchSales} class="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200 shadow-sm">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4">
-        <!-- Date From -->
         <div>
           <label class="block text-xs font-medium text-gray-700 mb-1">From</label>
           <div class="relative">
@@ -257,7 +254,6 @@
           </div>
         </div>
 
-        <!-- Date To -->
         <div>
           <label class="block text-xs font-medium text-gray-700 mb-1">To</label>
           <div class="relative">
@@ -272,7 +268,6 @@
           </div>
         </div>
 
-        <!-- Search with embedded dropdown -->
         <div>
           <label class="block text-xs font-medium text-gray-700 mb-1">Search</label>
           <div class="flex rounded-md shadow-sm">
@@ -292,10 +287,8 @@
           </div>
         </div>
 
-        <!-- Combined Min Items & Min Amount -->
         <div>
           <div class="flex gap-2">
-            <!-- Min Items -->
             <div class="flex-1">
               <label class="block text-xs font-medium text-gray-700 mb-1">Items</label>
               <div class="relative">
@@ -312,7 +305,6 @@
               </div>
             </div>
 
-            <!-- Min Amount -->
             <div class="flex-1">
               <label class="block text-xs font-medium text-gray-700 mb-1">Amount</label>
               <div class="relative">
@@ -332,7 +324,6 @@
           </div>
         </div>
 
-        <!-- Apply Button Column (auto width) -->
         <div class="flex items-end">
           <button
             on:click={fetchSales}
@@ -346,64 +337,49 @@
       </div>
     </form>
 
-    <!-- Sales table – clean, readable, clickable rows -->
     <div class="overflow-x-auto rounded-lg border border-gray-200">
       <table class="min-w-full divide-y divide-gray-200">
-        <!-- <thead class="bg-gray-50">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-            <th scope="col" class="relative px-6 py-3"><span class="sr-only">Details</span></th>
-          </tr>
-        </thead> -->
                 <thead class="bg-gray-50">
           <tr>
-
-            <!-- Sortable columns -->
-            <th on:click={() => sortBy("date_sold")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="sku_no">
+            <th on:click={() => sortBy("date_sold")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group">
               <div class="flex items-center gap-1">
                 Date
                 <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
               </div>
             </th>
 
-            <th on:click={() => sortBy("order_id")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="im_sku">
+            <th on:click={() => sortBy("order_id")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group">
               <div class="flex items-center gap-1">
                 Order ID
                 <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
               </div>
             </th>
 
-            <th on:click={() => sortBy("customer_name")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="item_description">
+            <th on:click={() => sortBy("customer_name")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group">
               <div class="flex items-center gap-1">
                 Customer
                 <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
               </div>
             </th>
 
-            <th on:click={() => sortBy("items_purchased")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="quantity">
+            <th on:click={() => sortBy("items_purchased")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group">
               <div class="flex items-center gap-1">
                 Items
                 <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
               </div>
             </th>
 
-            <th on:click={() => sortBy("total_amount")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group" data-sort-key="selling_price">
+            <th on:click={() => sortBy("total_amount")} scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 group">
               <div class="flex items-center gap-1">
                 Total
                 <ArrowUpDown class="w-3 h-3 text-gray-400 group-hover:text-gray-600" />
               </div>
             </th>
             <th scope="col" class="relative px-6 py-3"><span class="sr-only">Details</span></th>
-
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          {#each paginated as sale (sale.order_id)}
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
+          {#each sales || [] as sale (sale.order_id)}
             <tr
               on:click={() => selectSale(sale)}
               class="hover:bg-gray-50 cursor-pointer transition-colors group"
@@ -450,16 +426,14 @@
         </tbody>
       </table>
     </div>
-
   </div>
 
-  <!-- Pagination -->
-  {#if stats && stats.total_orders > itemsPerPage}
+  {#if totalOrders > itemsPerPage}
     <div class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="text-sm text-gray-600">
-        Showing {Math.min((currentPage - 1) * itemsPerPage + 1, stats?.total_orders)} 
-        to {Math.min(currentPage * itemsPerPage, stats?.total_orders)} 
-        of {stats?.total_orders} sales
+        Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalOrders)} 
+        to {Math.min(currentPage * itemsPerPage, totalOrders)} 
+        of {totalOrders} sales
       </div>
       
       <div class="flex items-center gap-1">
